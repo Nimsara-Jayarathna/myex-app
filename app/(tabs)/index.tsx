@@ -1,98 +1,255 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import dayjs from 'dayjs';
+import { useQuery } from '@tanstack/react-query';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
+import { logoutSession } from '@/api/auth';
+import { getTransactionsFiltered, type TransactionFilters } from '@/api/transactions';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { useAuth } from '@/hooks/useAuth';
+import type { Transaction } from '@/types';
 
-export default function HomeScreen() {
+const transactionKey = ['transactions'];
+
+export default function TodayScreen() {
+  const { user, logout, isAuthenticated } = useAuth();
+  const todayDate = dayjs().format('YYYY-MM-DD');
+
+  const [todayTransactions, setTodayTransactions] = useState<Transaction[]>([]);
+  const [todayIncome, setTodayIncome] = useState(0);
+  const [todayExpense, setTodayExpense] = useState(0);
+  const [todayBalance, setTodayBalance] = useState(0);
+
+  const {
+    data: todayData,
+    isLoading: isTodayLoading,
+    isError: isTodayError,
+  } = useQuery({
+    queryKey: [...transactionKey, 'today', todayDate],
+    queryFn: () =>
+      getTransactionsFiltered({
+        startDate: todayDate,
+        endDate: todayDate,
+      } as TransactionFilters),
+    enabled: isAuthenticated,
+  });
+
+  useEffect(() => {
+    const items = todayData?.transactions ?? [];
+    setTodayTransactions(items);
+    const income = items
+      .filter(item => item.type === 'income')
+      .reduce((total, item) => total + item.amount, 0);
+    const expense = items
+      .filter(item => item.type === 'expense')
+      .reduce((total, item) => total + item.amount, 0);
+    setTodayIncome(income);
+    setTodayExpense(expense);
+    setTodayBalance(income - expense);
+  }, [todayData]);
+
+  const displayName = useMemo(
+    () => user?.name?.split(' ')[0] ?? user?.email ?? 'there',
+    [user]
+  );
+
+  const handleLogout = async () => {
+    try {
+      await logoutSession();
+    } catch {
+      // silent
+    }
+    logout();
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <ThemedView style={styles.container}>
+        <ThemedText type="title" style={styles.title}>
+          Welcome to MyEx
+        </ThemedText>
+        <ThemedText style={styles.subtitle}>
+          Please log in from the web app first. Your session will be reused here.
+        </ThemedText>
+      </ThemedView>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <ThemedView style={styles.container}>
+      <View style={styles.header}>
+        <ThemedText style={styles.greeting}>Hello</ThemedText>
+        <ThemedText style={styles.userName}>{displayName}</ThemedText>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
+      <View style={styles.summaryRow}>
+        <SummaryCard label="Income" value={todayIncome} color="#2ecc71" />
+        <SummaryCard label="Expenses" value={todayExpense} color="#e74c3c" />
+        <SummaryCard label="Balance" value={todayBalance} color="#3498db" />
+      </View>
+
+      <ThemedText type="subtitle" style={styles.sectionTitle}>
+        Today's Activity
+      </ThemedText>
+
+      {isTodayLoading && (
+        <View style={styles.center}>
+          <ActivityIndicator />
+        </View>
+      )}
+
+      {isTodayError && (
+        <View style={styles.center}>
+          <ThemedText>Unable to load dashboard data.</ThemedText>
+        </View>
+      )}
+
+      {!isTodayLoading && !isTodayError && todayTransactions.length === 0 ? (
+        <View style={styles.center}>
+          <ThemedText>No activity today. Add a transaction on the web to see it here.</ThemedText>
+        </View>
+      ) : (
+        <FlatList
+          data={todayTransactions}
+          keyExtractor={item => String(item.id ?? `${item.date}-${item.amount}-${item.title}`)}
+          contentContainerStyle={styles.listContent}
+          renderItem={({ item }) => <TransactionRow transaction={item} />}
+        />
+      )}
+
+      <View style={styles.footer}>
+        <ThemedText style={styles.logout} onPress={handleLogout}>
+          Log out
         </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      </View>
+    </ThemedView>
   );
 }
 
+const SummaryCard = ({ label, value, color }: { label: string; value: number; color: string }) => {
+  return (
+    <View style={[styles.summaryCard, { borderColor: color }]}>
+      <ThemedText style={styles.summaryLabel}>{label}</ThemedText>
+      <ThemedText style={[styles.summaryValue, { color }]}>
+        ${value.toFixed(2)}
+      </ThemedText>
+    </View>
+  );
+};
+
+const TransactionRow = ({ transaction }: { transaction: Transaction }) => {
+  const isIncome = transaction.type === 'income';
+  const amountColor = isIncome ? '#2ecc71' : '#e74c3c';
+
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowLeft}>
+        <ThemedText style={styles.rowTitle}>
+          {transaction.title ?? transaction.categoryName ?? String(transaction.category)}
+        </ThemedText>
+        <ThemedText style={styles.rowMeta}>
+          {dayjs(transaction.date).format('MMM D, YYYY')}
+        </ThemedText>
+      </View>
+      <ThemedText style={[styles.rowAmount, { color: amountColor }]}>
+        {isIncome ? '+' : '-'}${transaction.amount.toFixed(2)}
+      </ThemedText>
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 24,
   },
-  stepContainer: {
-    gap: 8,
+  title: {
+    textAlign: 'center',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  subtitle: {
+    textAlign: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    marginBottom: 16,
+  },
+  greeting: {
+    fontSize: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+  userName: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 16,
+  },
+  summaryCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  sectionTitle: {
+    marginBottom: 8,
+  },
+  center: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  listContent: {
+    paddingBottom: 24,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ccc',
+  },
+  rowLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  rowTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  rowMeta: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
+  rowAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  footer: {
+    marginTop: 'auto',
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  logout: {
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
 });

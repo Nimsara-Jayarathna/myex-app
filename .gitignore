@@ -47,3 +47,5 @@ app-example
 
 # For VS Code (more strict):
 /.vscode
+
+.env
