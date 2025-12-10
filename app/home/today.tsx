@@ -150,13 +150,13 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   listContent: {
-    paddingBottom: 100, // Ensure last item isn't hidden by FAB
+    paddingBottom: 140, // Extra space so FAB and tab bar don't cover content
     gap: 12,
   },
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 30,
+    bottom: 96,
     width: 60,
     height: 60,
     borderRadius: 30,
