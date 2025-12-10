@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import {
@@ -37,9 +37,6 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // Track focus for styling
-  const [focusedField, setFocusedField] = useState<'fname' | 'lname' | 'email' | 'password' | null>(null);
 
   const registerMutation = useMutation({
     mutationFn: register,
@@ -119,30 +116,26 @@ export default function RegisterScreen() {
               <View style={styles.row}>
                 <View style={styles.fieldGroupHalf}>
                   <ThemedText style={styles.label}>First Name</ThemedText>
-                  <View style={[styles.inputWrapper, focusedField === 'fname' && styles.inputFocused]}>
+                  <View style={styles.inputWrapper}>
                     <TextInput
                       value={firstName}
                       onChangeText={setFirstName}
                       placeholder="Alex"
                       placeholderTextColor="#bdc3c7"
                       style={styles.input}
-                      onFocus={() => setFocusedField('fname')}
-                      onBlur={() => setFocusedField(null)}
                     />
                   </View>
                 </View>
 
                 <View style={styles.fieldGroupHalf}>
                   <ThemedText style={styles.label}>Last Name</ThemedText>
-                  <View style={[styles.inputWrapper, focusedField === 'lname' && styles.inputFocused]}>
+                  <View style={styles.inputWrapper}>
                     <TextInput
                       value={lastName}
                       onChangeText={setLastName}
                       placeholder="Doe"
                       placeholderTextColor="#bdc3c7"
                       style={styles.input}
-                      onFocus={() => setFocusedField('lname')}
-                      onBlur={() => setFocusedField(null)}
                     />
                   </View>
                 </View>
@@ -151,11 +144,11 @@ export default function RegisterScreen() {
               {/* Email */}
               <View style={styles.fieldGroup}>
                 <ThemedText style={styles.label}>Email Address</ThemedText>
-                <View style={[styles.inputWrapper, focusedField === 'email' && styles.inputFocused]}>
+                <View style={styles.inputWrapper}>
                   <MaterialIcons 
                     name="mail-outline" 
                     size={20} 
-                    color={focusedField === 'email' ? accentColor : '#95a5a6'} 
+                    color="#95a5a6"
                     style={styles.inputIcon} 
                   />
                   <TextInput
@@ -166,8 +159,6 @@ export default function RegisterScreen() {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     style={styles.input}
-                    onFocus={() => setFocusedField('email')}
-                    onBlur={() => setFocusedField(null)}
                   />
                 </View>
               </View>
@@ -175,11 +166,11 @@ export default function RegisterScreen() {
               {/* Password */}
               <View style={styles.fieldGroup}>
                 <ThemedText style={styles.label}>Password</ThemedText>
-                <View style={[styles.inputWrapper, focusedField === 'password' && styles.inputFocused]}>
+                <View style={styles.inputWrapper}>
                   <MaterialIcons 
                     name="lock-outline" 
                     size={20} 
-                    color={focusedField === 'password' ? accentColor : '#95a5a6'} 
+                    color="#95a5a6"
                     style={styles.inputIcon} 
                   />
                   <TextInput
@@ -189,8 +180,6 @@ export default function RegisterScreen() {
                     placeholderTextColor="#bdc3c7"
                     secureTextEntry
                     style={styles.input}
-                    onFocus={() => setFocusedField('password')}
-                    onBlur={() => setFocusedField(null)}
                   />
                 </View>
               </View>

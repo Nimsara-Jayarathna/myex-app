@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import {
@@ -35,9 +35,6 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  
-  // Focus state for styling
-  const [focusedField, setFocusedField] = useState<'email' | 'password' | null>(null);
 
   const loginMutation = useMutation({
     mutationFn: login,
@@ -104,14 +101,11 @@ export default function LoginScreen() {
               {/* Email Input */}
               <View style={styles.inputContainer}>
                 <ThemedText style={styles.label}>Email Address</ThemedText>
-                <View style={[
-                  styles.inputWrapper, 
-                  focusedField === 'email' && styles.inputWrapperFocused
-                ]}>
+                <View style={styles.inputWrapper}>
                   <MaterialIcons 
                     name="mail-outline" 
                     size={20} 
-                    color={focusedField === 'email' ? accentColor : '#95a5a6'} 
+                    color="#95a5a6"
                     style={styles.inputIcon}
                   />
                   <TextInput
@@ -122,8 +116,6 @@ export default function LoginScreen() {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     style={styles.input}
-                    onFocus={() => setFocusedField('email')}
-                    onBlur={() => setFocusedField(null)}
                   />
                 </View>
               </View>
@@ -131,14 +123,11 @@ export default function LoginScreen() {
               {/* Password Input */}
               <View style={styles.inputContainer}>
                 <ThemedText style={styles.label}>Password</ThemedText>
-                <View style={[
-                  styles.inputWrapper, 
-                  focusedField === 'password' && styles.inputWrapperFocused
-                ]}>
+                <View style={styles.inputWrapper}>
                   <MaterialIcons 
                     name="lock-outline" 
                     size={20} 
-                    color={focusedField === 'password' ? accentColor : '#95a5a6'} 
+                    color="#95a5a6"
                     style={styles.inputIcon}
                   />
                   <TextInput
@@ -148,8 +137,6 @@ export default function LoginScreen() {
                     placeholderTextColor="#bdc3c7"
                     secureTextEntry
                     style={styles.input}
-                    onFocus={() => setFocusedField('password')}
-                    onBlur={() => setFocusedField(null)}
                   />
                 </View>
                 <Pressable onPress={() => { /* TODO */ }} style={styles.forgotPassRow}>

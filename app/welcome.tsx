@@ -30,7 +30,7 @@ export default function WelcomeScreen() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/home');
+      router.replace('/home' as any);
     }
   }, [isAuthenticated, router]);
 
