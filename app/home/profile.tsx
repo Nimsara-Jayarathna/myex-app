@@ -3,9 +3,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { logoutSession } from '@/api/auth';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { ProfileHeader } from '@/components/ProfileHeader';
 import { useAuth } from '@/hooks/useAuth';
+import { HomeBackground } from './_components/HomeBackground';
 
 const accentColor = '#3498db';
 
@@ -22,7 +22,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ThemedView style={styles.screen}>
+    <HomeBackground>
       <ProfileHeader user={user ? { name: user.name ?? user.email, avatarUrl: undefined } : null} />
 
       <View style={styles.container}>
@@ -49,7 +49,7 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
       </View>
-    </ThemedView>
+    </HomeBackground>
   );
 }
 
