@@ -1,13 +1,19 @@
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { createTransaction } from '@/api/transactions';
@@ -41,28 +47,35 @@ export function AddTransactionSheet({
 }: AddTransactionSheetProps) {
   const queryClient = useQueryClient();
 
+  // --- STATE ---
+  const [step, setStep] = useState<AddTransactionStep>(1);
   const [amount, setAmount] = useState('');
   const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense');
+  
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [filteredCategories, setFilteredCategories] = useState<CategoryOption[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
-  const [note, setNote] = useState('');
-  const [step, setStep] = useState<AddTransactionStep>(1);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
-  const isTodayDate = dayjs(date).isSame(dayjs(), 'day');
 
+  // Date State
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  
+  const [note, setNote] = useState('');
+
+  // Reset on Open
   useEffect(() => {
     if (visible) {
       setStep(1);
       setTransactionType('expense');
-      setDate(dayjs().format('YYYY-MM-DD'));
+      setDate(new Date());
       setAmount('');
       setSelectedCategory('');
       setNote('');
     }
   }, [visible]);
 
+  // Load Categories on Step 2
   useEffect(() => {
     if (!visible || step !== 2) return;
 
@@ -83,10 +96,10 @@ export function AddTransactionSheet({
         setIsLoadingCategories(false);
       }
     };
-
     void loadCategories();
   }, [visible, step]);
 
+  // Filter Categories
   useEffect(() => {
     if (!categories.length) {
       setFilteredCategories([]);
@@ -97,13 +110,11 @@ export function AddTransactionSheet({
     const nextFiltered = categories.filter(category => category.type === transactionType);
     setFilteredCategories(nextFiltered);
 
-    if (!nextFiltered.length) {
-      setSelectedCategory('');
-      return;
+    // Auto-select default
+    if (nextFiltered.length > 0) {
+      const defaultForType = nextFiltered.find(category => category.isDefault);
+      setSelectedCategory(defaultForType?.id ?? nextFiltered[0]?.id ?? '');
     }
-
-    const defaultForType = nextFiltered.find(category => category.isDefault);
-    setSelectedCategory(defaultForType?.id ?? nextFiltered[0]?.id ?? '');
   }, [categories, transactionType]);
 
   const mutation = useMutation({
@@ -112,13 +123,9 @@ export function AddTransactionSheet({
       queryClient.invalidateQueries({ queryKey: transactionKey });
       queryClient.invalidateQueries({ queryKey: summaryKey });
       onTransactionCreated?.(transaction);
-      setAmount('');
-      setNote('');
       onClose();
     },
-    onError: () => {
-      Alert.alert('Error', 'Unable to add transaction');
-    },
+    onError: () => Alert.alert('Error', 'Unable to add transaction'),
   });
 
   const handleSubmit = () => {
@@ -136,28 +143,28 @@ export function AddTransactionSheet({
       amount: numericAmount,
       type: transactionType,
       category: selectedCategory,
-      date,
-      note: note.trim() ? note.trim() : undefined,
+      date: dayjs(date).format('YYYY-MM-DD'),
+      note: note.trim() || undefined,
     });
   };
 
-  const handleSelectTypeAndContinue = (selectedType: 'income' | 'expense') => {
+  const handleNextStep = (type: 'income' | 'expense') => {
     const numericAmount = Number(amount);
     if (!numericAmount || Number.isNaN(numericAmount) || numericAmount <= 0) {
       Alert.alert('Validation', 'Enter a valid amount first');
       return;
     }
-    setTransactionType(selectedType);
+    setTransactionType(type);
     setStep(2);
   };
 
-  const handleBackToStepOne = () => {
-    setStep(1);
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    // Android closes automatically, iOS needs manual toggle logic if in modal
+    if (Platform.OS === 'android') setShowDatePicker(false);
+    if (selectedDate) setDate(selectedDate);
   };
 
-  if (!visible) {
-    return null;
-  }
+  if (!visible) return null;
 
   return (
     <Modal
@@ -165,146 +172,158 @@ export function AddTransactionSheet({
       transparent
       animationType="slide"
       onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.backdrop}
+      >
         <Pressable style={styles.backdropTouchable} onPress={onClose} />
 
         <View style={styles.sheet}>
           <View style={styles.handle} />
-          <ThemedText type="title" style={styles.title}>
-            Add Transaction
-          </ThemedText>
-          <ThemedText style={styles.subtitle}>
-            Quickly log income or expenses in two simple steps.
-          </ThemedText>
-
-          {step === 1 ? (
-            <View style={styles.stepContainer}>
-              <ThemedText style={styles.label}>Amount</ThemedText>
-              <TextInput
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="numeric"
-                placeholder="0.00"
-                style={styles.input}
-              />
-
-              <ThemedText style={[styles.label, styles.stepHint]}>
-                Choose type after entering an amount
-              </ThemedText>
-
-              <View style={styles.typeRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Select income"
-                  style={({ pressed }) => [
-                    styles.typePill,
-                    styles.incomePill,
-                    pressed && styles.pillPressed,
-                  ]}
-                  onPress={() => handleSelectTypeAndContinue('income')}>
-                  <ThemedText style={styles.typePillText}>Income</ThemedText>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Select expense"
-                  style={({ pressed }) => [
-                    styles.typePill,
-                    styles.expensePill,
-                    pressed && styles.pillPressed,
-                  ]}
-                  onPress={() => handleSelectTypeAndContinue('expense')}>
-                  <ThemedText style={styles.typePillText}>Expense</ThemedText>
-                </Pressable>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.stepContainer}>
-              <View style={styles.stepHeaderRow}>
-                <Pressable
-                  onPress={handleBackToStepOne}
-                  accessibilityRole="button"
-                  accessibilityLabel="Back to amount step"
-                  style={({ pressed }) => [
-                    styles.backPill,
-                    pressed && styles.pillPressed,
-                  ]}>
-                  <ThemedText style={styles.backPillText}>{'<'}</ThemedText>
-                </Pressable>
-                <ThemedText style={styles.stepTag}>
-                  {transactionType === 'income' ? 'Income' : 'Expense'}
-                </ThemedText>
-              </View>
-
-              <ThemedText style={styles.label}>Category</ThemedText>
-              <View style={styles.categoriesRow}>
-                {isLoadingCategories ? (
-                  <ThemedText>Loading categories...</ThemedText>
-                ) : filteredCategories.length === 0 ? (
-                  <ThemedText>No categories for this type.</ThemedText>
-                ) : (
-                  filteredCategories.map(category => (
-                    <Pressable
-                      key={category.id}
-                      style={({ pressed }) => [
-                        styles.categoryPill,
-                        selectedCategory === category.id && styles.categoryPillSelected,
-                        pressed && styles.pillPressed,
-                      ]}
-                      onPress={() => setSelectedCategory(category.id)}>
-                      <View style={styles.categoryContentRow}>
-                        {category.isDefault && (
-                          <ThemedText style={styles.defaultStar}>★</ThemedText>
-                        )}
-                        <ThemedText
-                          style={[
-                            styles.categoryPillText,
-                            selectedCategory === category.id && styles.categoryPillTextSelected,
-                          ]}>
-                          {category.name}
-                        </ThemedText>
-                      </View>
-                    </Pressable>
-                  ))
-                )}
-              </View>
-
-              <ThemedText style={styles.label}>Date</ThemedText>
-              <TextInput
-                value={date}
-                onChangeText={setDate}
-                placeholder="YYYY-MM-DD"
-                style={styles.input}
-              />
-              {isTodayDate && (
-                <ThemedText style={styles.dateHint}>Using today&apos;s date</ThemedText>
-              )}
-
-              <ThemedText style={styles.label}>Note (optional)</ThemedText>
-              <TextInput
-                value={note}
-                onChangeText={setNote}
-                placeholder="Add a short note"
-                style={[styles.input, styles.noteInput]}
-                multiline
-              />
-
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Add transaction"
-                style={({ pressed }) => [
-                  styles.submitButton,
-                  pressed && styles.submitButtonPressed,
-                ]}
-                onPress={handleSubmit}
-                disabled={mutation.isPending}>
-                <ThemedText style={styles.submitText}>
-                  {mutation.isPending ? 'Adding...' : 'Add transaction'}
-                </ThemedText>
+          <View style={styles.header}>
+            <ThemedText type="title">New Transaction</ThemedText>
+            {step === 2 && (
+              <Pressable onPress={() => setStep(1)} style={styles.backButton}>
+                <ThemedText style={styles.backText}>Edit Amount</ThemedText>
               </Pressable>
-            </View>
-          )}
+            )}
+          </View>
+
+          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+            
+            {/* --- STEP 1: AMOUNT --- */}
+            {step === 1 ? (
+              <View style={styles.stepContainer}>
+                <View style={styles.amountWrapper}>
+                  <ThemedText style={styles.currencySymbol}>$</ThemedText>
+                  <TextInput
+                    value={amount}
+                    onChangeText={setAmount}
+                    keyboardType="numeric"
+                    placeholder="0.00"
+                    placeholderTextColor="#ccc"
+                    style={styles.amountInput}
+                    autoFocus
+                  />
+                </View>
+
+                <ThemedText style={styles.hintText}>Select type to continue</ThemedText>
+
+                <View style={styles.typeRow}>
+                  <Pressable
+                    style={[styles.typeButton, styles.incomeBtn]}
+                    onPress={() => handleNextStep('income')}>
+                    <MaterialIcons name="arrow-upward" size={20} color="#27ae60" />
+                    <ThemedText style={[styles.typeText, { color: '#27ae60' }]}>Income</ThemedText>
+                  </Pressable>
+                  
+                  <Pressable
+                    style={[styles.typeButton, styles.expenseBtn]}
+                    onPress={() => handleNextStep('expense')}>
+                    <MaterialIcons name="arrow-downward" size={20} color="#c0392b" />
+                    <ThemedText style={[styles.typeText, { color: '#c0392b' }]}>Expense</ThemedText>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              
+              /* --- STEP 2: DETAILS --- */
+              <View style={styles.stepContainer}>
+                
+                {/* Category Selection */}
+                <View style={styles.section}>
+                  <ThemedText style={styles.label}>Category</ThemedText>
+                  <View style={styles.categoriesGrid}>
+                    {isLoadingCategories ? (
+                      <ActivityIndicator />
+                    ) : filteredCategories.map(cat => (
+                      <Pressable
+                        key={cat.id}
+                        style={[
+                          styles.catPill,
+                          selectedCategory === cat.id && styles.catPillActive
+                        ]}
+                        onPress={() => setSelectedCategory(cat.id)}>
+                        <ThemedText 
+                          style={[
+                            styles.catText,
+                            selectedCategory === cat.id && styles.catTextActive
+                          ]}>
+                          {cat.name}
+                        </ThemedText>
+                        {cat.isDefault && <MaterialIcons name="star" size={10} color="#f1c40f" style={{marginLeft:4}} />}
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Date Picker */}
+                <View style={styles.section}>
+                  <ThemedText style={styles.label}>Date</ThemedText>
+                  <Pressable 
+                    style={styles.dateInput}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <MaterialIcons name="calendar-today" size={18} color="#555" />
+                    <ThemedText style={styles.dateText}>
+                      {dayjs(date).format('MMMM D, YYYY')}
+                    </ThemedText>
+                  </Pressable>
+
+                  {/* Native Picker Logic */}
+                  {showDatePicker && (
+                     Platform.OS === 'ios' ? (
+                       <View style={styles.iosPickerContainer}>
+                         <DateTimePicker
+                           value={date}
+                           mode="date"
+                           display="spinner"
+                           onChange={handleDateChange}
+                           textColor="#000"
+                         />
+                         <Pressable onPress={() => setShowDatePicker(false)} style={styles.closePicker}>
+                           <ThemedText style={{color: accentColor, fontWeight:'bold'}}>Done</ThemedText>
+                         </Pressable>
+                       </View>
+                     ) : (
+                       <DateTimePicker
+                         value={date}
+                         mode="date"
+                         display="default"
+                         onChange={handleDateChange}
+                       />
+                     )
+                  )}
+                </View>
+
+                {/* Note Input */}
+                <View style={styles.section}>
+                  <ThemedText style={styles.label}>Note (Optional)</ThemedText>
+                  <TextInput
+                    value={note}
+                    onChangeText={setNote}
+                    placeholder="What was this for?"
+                    style={styles.noteInput}
+                    multiline
+                  />
+                </View>
+
+                {/* Submit */}
+                <Pressable
+                  onPress={handleSubmit}
+                  disabled={mutation.isPending}
+                  style={[styles.submitBtn, mutation.isPending && {opacity: 0.7}]}>
+                  {mutation.isPending ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <ThemedText style={styles.submitText}>Save Transaction</ThemedText>
+                  )}
+                </Pressable>
+              </View>
+            )}
+          </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -312,172 +331,177 @@ export function AddTransactionSheet({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.22)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   },
   backdropTouchable: {
     flex: 1,
   },
   sheet: {
+    backgroundColor: '#fff',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    paddingHorizontal: 20,
+    maxHeight: '85%',
     paddingTop: 12,
-    paddingBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(211,216,224,0.9)',
-    backgroundColor: 'rgba(255,255,255,0.98)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -16 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 12,
   },
   handle: {
-    alignSelf: 'center',
     width: 40,
     height: 4,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.12)',
-    marginBottom: 8,
-  },
-  title: {
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 13,
-    opacity: 0.7,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 2,
+    alignSelf: 'center',
     marginBottom: 16,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    marginBottom: 16,
+  },
+  backButton: {
+    paddingVertical: 4,
+  },
+  backText: {
+    color: accentColor,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
+
+  // Step wrappers
   stepContainer: {
-    gap: 12,
+    gap: 20,
+    marginBottom: 8,
   },
-  label: {
-    fontSize: 13,
-    fontWeight: '500',
+
+  // Step 1
+  amountWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 20,
   },
-  input: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(211,216,224,0.9)',
-    backgroundColor: 'rgba(255,255,255,0.96)',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 16,
+  currencySymbol: {
+    fontSize: 32,
+    fontWeight: '600',
+    color: '#333',
+    marginRight: 4,
   },
-  noteInput: {
-    minHeight: 72,
-    textAlignVertical: 'top',
+  amountInput: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: '#333',
+    minWidth: 100,
+    textAlign: 'center',
   },
-  dateHint: {
-    fontSize: 11,
-    opacity: 0.7,
-    marginTop: 4,
-  },
-  stepHint: {
-    opacity: 0.7,
+  hintText: {
+    textAlign: 'center',
+    color: '#95a5a6',
+    marginBottom: 24,
   },
   typeRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 4,
+    gap: 16,
   },
-  typePill: {
+  typeButton: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  incomePill: {
-    backgroundColor: 'rgba(46,204,113,0.12)',
-  },
-  expensePill: {
-    backgroundColor: 'rgba(231,76,60,0.12)',
-  },
-  typePillText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  pillPressed: {
-    opacity: 0.85,
-  },
-  stepHeaderRow: {
+    height: 56,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 8,
   },
-  backPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(211,216,224,0.9)',
+  incomeBtn: { backgroundColor: 'rgba(46, 204, 113, 0.1)' },
+  expenseBtn: { backgroundColor: 'rgba(231, 76, 60, 0.1)' },
+  typeText: { fontSize: 16, fontWeight: '700' },
+
+  // Step 2
+  section: {
+    marginBottom: 20,
   },
-  backPillText: {
-    fontSize: 13,
-  },
-  stepTag: {
+  label: {
     fontSize: 13,
     fontWeight: '600',
-    color: accentColor,
+    color: '#7f8c8d',
+    marginBottom: 8,
+    textTransform: 'uppercase',
   },
-  categoriesRow: {
+  categoriesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'space-between',
+    gap: 10,
   },
-  categoryPill: {
-    width: '48%',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(211,216,224,0.9)',
-    backgroundColor: 'rgba(255,255,255,0.96)',
-  },
-  categoryContentRow: {
+  catPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
-  defaultStar: {
-    fontSize: 12,
-    color: '#f1c40f',
-  },
-  categoryPillSelected: {
+  catPillActive: {
+    backgroundColor: '#ebf5fb',
     borderColor: accentColor,
-    backgroundColor: 'rgba(52,152,219,0.08)',
   },
-  categoryPillText: {
-    fontSize: 13,
+  catText: { fontSize: 14, color: '#333' },
+  catTextActive: { color: accentColor, fontWeight: '600' },
+  
+  // Date Picker
+  dateInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    gap: 10,
   },
-  categoryPillTextSelected: {
-    fontWeight: '600',
-    color: accentColor,
+  dateText: { fontSize: 16, color: '#333' },
+  iosPickerContainer: {
+    marginTop: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  submitButton: {
-    marginTop: 12,
-    height: 48,
-    borderRadius: 999,
+  closePicker: {
+    alignItems: 'flex-end',
+    padding: 10,
+    backgroundColor: '#e8e8e8',
+  },
+  
+  // Note
+  noteInput: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    padding: 14,
+    fontSize: 16,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  
+  // Submit
+  submitBtn: {
     backgroundColor: accentColor,
+    height: 56,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.16,
-    shadowRadius: 20,
+    marginTop: 10,
+    shadowColor: accentColor,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
     elevation: 6,
   },
-  submitButtonPressed: {
-    opacity: 0.9,
-  },
-  submitText: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: 15,
-  },
+  submitText: { color: '#fff', fontSize: 18, fontWeight: '700' },
 });

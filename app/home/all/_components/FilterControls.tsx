@@ -1,7 +1,21 @@
 import React, { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import {
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import dayjs from 'dayjs';
+
 import { ThemedText } from '@/components/themed-text';
-import type { AllFilters, TransactionTypeFilter } from '../_hooks/useTransactionLogic';
+import type { AllFilters } from '../_hooks/useTransactionLogic';
+
+const accentColor = '#3498db';
 
 interface Props {
   filters: AllFilters;
@@ -17,21 +31,21 @@ export function FilterControls({ filters, categories, onChange }: Props) {
 
   return (
     <View style={styles.container}>
-      {/* 1. Date Range (Simple Inputs for MVP - Replace with DateTimePicker in Prod) */}
+      {/* 1. Date Range with Platform-Specific Pickers */}
       <ControlCard title="Date Range">
         <View style={styles.dateColumn}>
           <View style={styles.dateRow}>
             <ThemedText style={styles.dateLabel}>From</ThemedText>
-            <DateInput
+            <DateSelector
               value={filters.startDate}
-              onChange={(v) => update({ startDate: v })}
+              onChange={(d) => update({ startDate: d })}
             />
           </View>
           <View style={styles.dateRow}>
             <ThemedText style={styles.dateLabel}>To</ThemedText>
-            <DateInput
+            <DateSelector
               value={filters.endDate}
-              onChange={(v) => update({ endDate: v })}
+              onChange={(d) => update({ endDate: d })}
             />
           </View>
         </View>
@@ -62,7 +76,7 @@ export function FilterControls({ filters, categories, onChange }: Props) {
               ? 'All categories'
               : categories.find((c) => c.id === filters.categoryFilter)?.name ?? 'Select'}
           </ThemedText>
-          <ThemedText style={styles.arrow}>▼</ThemedText>
+          <MaterialIcons name="arrow-drop-down" size={24} color="#95a5a6" />
         </Pressable>
       </ControlCard>
 
@@ -70,7 +84,13 @@ export function FilterControls({ filters, categories, onChange }: Props) {
       <Modal visible={isCatModalOpen} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <ThemedText type="subtitle" style={styles.modalTitle}>Select Category</ThemedText>
+            <View style={styles.modalHeader}>
+              <ThemedText type="subtitle" style={styles.modalTitle}>Select Category</ThemedText>
+              <Pressable onPress={() => setIsCatModalOpen(false)}>
+                 <MaterialIcons name="close" size={24} color="#555" />
+              </Pressable>
+            </View>
+            
             <ScrollView contentContainerStyle={styles.modalList}>
               <Pressable
                 style={styles.modalItem}
@@ -91,7 +111,6 @@ export function FilterControls({ filters, categories, onChange }: Props) {
                   }}
                 >
                   <ThemedText>{cat.name}</ThemedText>
-                  {/* Tiny badge in modal */}
                   <View style={[styles.tinyBadge, cat.type === 'income' ? styles.badgeIncome : styles.badgeExpense]}>
                      <ThemedText style={[styles.tinyBadgeText, cat.type === 'income' ? styles.textIncome : styles.textExpense]}>
                        {cat.type.charAt(0).toUpperCase()}
@@ -100,9 +119,6 @@ export function FilterControls({ filters, categories, onChange }: Props) {
                 </Pressable>
               ))}
             </ScrollView>
-            <Pressable style={styles.closeButton} onPress={() => setIsCatModalOpen(false)}>
-              <ThemedText style={styles.closeButtonText}>Close</ThemedText>
-            </Pressable>
           </View>
         </View>
       </Modal>
@@ -110,7 +126,7 @@ export function FilterControls({ filters, categories, onChange }: Props) {
   );
 }
 
-// --- Sub Components ---
+// --- SUB-COMPONENTS ---
 
 const ControlCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <View style={styles.card}>
@@ -119,15 +135,82 @@ const ControlCard = ({ title, children }: { title: string; children: React.React
   </View>
 );
 
-const DateInput = ({ value, onChange }: { value: string; onChange: (t: string) => void }) => (
-  <TextInput
-    style={styles.dateInput}
-    value={value}
-    onChangeText={onChange}
-    placeholder="YYYY-MM-DD"
-    placeholderTextColor="#999"
-  />
-);
+// --- NEW DATE SELECTOR (Handles Web & Mobile) ---
+const DateSelector = ({ value, onChange }: { value: string; onChange: (d: string) => void }) => {
+  const [show, setShow] = useState(false);
+  const dateObj = new Date(value);
+
+  // Handle Mobile Change
+  const onMobileChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') setShow(false);
+    if (selectedDate) {
+      onChange(dayjs(selectedDate).format('YYYY-MM-DD'));
+    }
+  };
+
+  // 1. WEB RENDER
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.dateInputWrapper}>
+        <MaterialIcons name="calendar-today" size={16} color="#555" style={{marginRight: 8}} />
+        {/* @ts-ignore - Web specific prop handling */}
+        <input
+          type="date"
+          value={value}
+          onChange={(e: any) => onChange(e.target.value)}
+          style={{
+            border: 'none',
+            outline: 'none',
+            fontSize: '13px',
+            fontFamily: 'System',
+            background: 'transparent',
+            color: '#333',
+            width: '100%'
+          }}
+        />
+      </View>
+    );
+  }
+
+  // 2. MOBILE RENDER
+  return (
+    <>
+      <Pressable onPress={() => setShow(true)} style={styles.dateInputWrapper}>
+        <MaterialIcons name="calendar-today" size={16} color="#555" />
+        <ThemedText style={styles.dateText}>{value}</ThemedText>
+      </Pressable>
+
+      {show && (
+        Platform.OS === 'ios' ? (
+          <Modal transparent animationType="fade">
+            <View style={styles.iosBackdrop}>
+               <View style={styles.iosPickerBox}>
+                 <DateTimePicker
+                   value={dateObj}
+                   mode="date"
+                   display="spinner"
+                   onChange={onMobileChange}
+                   textColor="black"
+                 />
+                 <Pressable onPress={() => setShow(false)} style={styles.iosDoneBtn}>
+                   <ThemedText style={{color: accentColor, fontWeight: 'bold'}}>Done</ThemedText>
+                 </Pressable>
+               </View>
+            </View>
+          </Modal>
+        ) : (
+          <DateTimePicker
+            value={dateObj}
+            mode="date"
+            display="default"
+            onChange={onMobileChange}
+          />
+        )
+      )}
+    </>
+  );
+};
+
 
 const styles = StyleSheet.create({
   container: { gap: 12 },
@@ -152,32 +235,59 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   row: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
+  
+  // Date Styles
   dateColumn: {
     width: '100%',
-    gap: 6,
+    gap: 8,
   },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
   dateLabel: {
     width: 40,
     fontSize: 12,
     color: '#95a5a6',
+    fontWeight: '600',
   },
-  dateInput: {
+  dateInputWrapper: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#f8f9fa',
     borderWidth: 1,
     borderColor: '#e0e0e0',
     borderRadius: 8,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontSize: 13,
-    minWidth: 100,
-    textAlign: 'center',
+    paddingVertical: 8,
+    height: 40,
+    gap: 8,
   },
+  dateText: {
+    fontSize: 13,
+    color: '#333',
+  },
+  iosBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iosPickerBox: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    width: '80%',
+    alignItems: 'center',
+  },
+  iosDoneBtn: {
+    marginTop: 8,
+    padding: 8,
+  },
+
+  // Pill Styles
   pill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -192,6 +302,8 @@ const styles = StyleSheet.create({
   },
   pillText: { fontSize: 13, color: '#333', fontWeight: '500' },
   pillTextActive: { color: '#fff' },
+  
+  // Dropdown Styles
   dropdownTrigger: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -203,11 +315,12 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
     borderRadius: 12,
   },
-  arrow: { fontSize: 10, opacity: 0.5 },
+
   // Modal Styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '80%' },
-  modalTitle: { textAlign: 'center', marginBottom: 16 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalTitle: { textAlign: 'center' },
   modalList: { paddingBottom: 20 },
   modalItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   modalItemActive: { backgroundColor: '#f0f9ff' },
