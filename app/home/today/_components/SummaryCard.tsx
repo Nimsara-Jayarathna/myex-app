@@ -102,3 +102,5 @@ const styles = StyleSheet.create({
     color: '#e74c3c',
   },
 });
+
+export default SummaryCard;

@@ -9,14 +9,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { ThemedText } from '@/components/themed-text';
 import { HomeBackground } from './_components/HomeBackground';
 import { AddTransactionSheet } from './_components/AddTransactionSheet';
-
-// Sub-components
 import { TransactionList } from './all/_components/TransactionList';
-import { 
-  type AllFilters, 
-  type Grouping, 
-  useGroupedTransactions, 
-  useTransactionCategories 
+import SmartFilterHeader from './all/_components/SmartFilterHeader';
+import {
+  type AllFilters,
+  type Grouping,
+  useGroupedTransactions,
+  useTransactionCategories,
 } from './all/_hooks/useTransactionLogic';
 import { AllFiltersSheet } from './all/_components/AllFiltersSheet';
 
@@ -24,7 +23,6 @@ export default function AllTransactionsScreen() {
   const { isAuthenticated, user } = useAuth();
   const today = dayjs().format('YYYY-MM-DD');
 
-  // --- STATE ---
   const [filters, setFilters] = useState<AllFilters>({
     startDate: today,
     endDate: today,
@@ -37,7 +35,6 @@ export default function AllTransactionsScreen() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
-  // --- DATA ---
   const { data, isLoading } = useQuery({
     queryKey: ['transactions', 'all', filters],
     queryFn: () =>
@@ -52,64 +49,69 @@ export default function AllTransactionsScreen() {
   });
 
   const transactions = data?.transactions ?? [];
-  
-  // Apply category filtering locally (API handles Type/Date, Client handles Category specific ID)
-  const filteredTransactions = transactions.filter((txn) => {
+
+  const filteredTransactions = transactions.filter(txn => {
     if (filters.categoryFilter === 'all') return true;
-    const catId = typeof txn.category === 'string' ? txn.category : txn.category?.id ?? txn.category?._id;
+    const catId =
+      typeof txn.category === 'string'
+        ? txn.category
+        : txn.category?.id ?? txn.category?._id;
     return catId === filters.categoryFilter;
   });
 
-  // --- HOOKS ---
   const { categoriesForType } = useTransactionCategories(filters, setFilters);
   const groupedData = useGroupedTransactions(filteredTransactions, grouping);
 
-  // --- RENDER ---
+  const typeLabel =
+    filters.typeFilter === 'all'
+      ? 'All types'
+      : filters.typeFilter === 'income'
+      ? 'Income'
+      : 'Expense';
+
+  const sortLabel =
+    filters.sortField === 'date'
+      ? `Date (${filters.sortDirection === 'asc' ? '↑' : '↓'})`
+      : filters.sortField === 'amount'
+      ? `Amount (${filters.sortDirection === 'asc' ? '↑' : '↓'})`
+      : `Category (${filters.sortDirection === 'asc' ? '↑' : '↓'})`;
+
+  const groupLabel =
+    grouping === 'none' ? 'None' : grouping === 'month' ? 'Month' : 'Category';
+
   return (
     <HomeBackground>
-      <ProfileHeader user={user ? { name: user.name ?? user.email, avatarUrl: undefined } : null} />
+      <ProfileHeader
+        user={
+          user ? { name: user.name ?? user.email, avatarUrl: undefined } : null
+        }
+      />
 
       <View style={styles.container}>
-        <TransactionList 
+        <View style={styles.summaryWrapper}>
+          <SmartFilterHeader
+            filters={filters}
+            grouping={grouping}
+            isLoading={isLoading}
+            onOpenFilters={() => setIsFiltersOpen(true)}
+          />
+        </View>
+
+        <TransactionList
           data={filteredTransactions}
           groupedData={groupedData}
-          HeaderComponent={() => (
-            <View style={styles.headerContainer}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.filtersButton,
-                  pressed && styles.filtersButtonPressed,
-                ]}
-                onPress={() => setIsFiltersOpen(true)}
-              >
-                <ThemedText style={styles.filtersButtonLabel}>
-                  Filters, sort &amp; group
-                </ThemedText>
-                <ThemedText style={styles.filtersButtonSummary}>
-                  {filters.startDate} → {filters.endDate} •{' '}
-                  {filters.typeFilter === 'all'
-                    ? 'All types'
-                    : filters.typeFilter === 'income'
-                    ? 'Income'
-                    : 'Expense'}
-                </ThemedText>
-              </Pressable>
-              {isLoading && <ActivityIndicator style={{ marginTop: 20 }} />}
-            </View>
-          )}
+          HeaderComponent={() => null}
         />
 
         <Pressable
           style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-          onPress={() => setIsAddOpen(true)}>
+          onPress={() => setIsAddOpen(true)}
+        >
           <ThemedText style={styles.fabText}>+</ThemedText>
         </Pressable>
       </View>
 
-      <AddTransactionSheet
-        visible={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
-      />
+      <AddTransactionSheet visible={isAddOpen} onClose={() => setIsAddOpen(false)} />
 
       <AllFiltersSheet
         visible={isFiltersOpen}
@@ -127,31 +129,13 @@ export default function AllTransactionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16 },
-  headerContainer: { paddingBottom: 16, paddingTop: 8 },
-  filtersButton: {
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(211,216,224,0.9)',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+  container: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 24,
   },
-  filtersButtonPressed: {
-    opacity: 0.9,
-  },
-  filtersButtonLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  filtersButtonSummary: {
-    fontSize: 11,
-    opacity: 0.7,
-    marginTop: 2,
+  summaryWrapper: {
+    marginBottom: 12,
   },
   fab: {
     position: 'absolute',

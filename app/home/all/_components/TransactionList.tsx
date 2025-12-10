@@ -21,6 +21,7 @@ export function TransactionList({ data, groupedData, HeaderComponent }: Props) {
         sections={groupedData}
         keyExtractor={(item) => item.id ?? Math.random().toString()}
         ListHeaderComponent={HeaderComponent}
+        showsVerticalScrollIndicator={false}
         renderSectionHeader={({ section: { title, data } }) => (
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderLeft}>
@@ -46,6 +47,7 @@ export function TransactionList({ data, groupedData, HeaderComponent }: Props) {
       keyExtractor={(item) => item.id ?? Math.random().toString()}
       ListHeaderComponent={HeaderComponent}
       renderItem={({ item }) => <TransactionRow transaction={item} />}
+      showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.listContent}
       ListEmptyComponent={
         <View style={styles.center}>
@@ -57,7 +59,7 @@ export function TransactionList({ data, groupedData, HeaderComponent }: Props) {
 }
 
 const styles = StyleSheet.create({
-  listContent: { paddingBottom: 100, gap: 12 },
+  listContent: { paddingBottom: 140, gap: 12 },
   center: { padding: 40, alignItems: 'center' },
   // Section Header
   sectionHeader: {
