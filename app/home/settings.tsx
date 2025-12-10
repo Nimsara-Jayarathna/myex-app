@@ -9,10 +9,10 @@ import {
   setDefaultCategory,
 } from '@/api/categories';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { ProfileHeader } from '@/components/ProfileHeader';
 import { useAuth } from '@/hooks/useAuth';
 import type { Category } from '@/types';
+import { HomeBackground } from './_components/HomeBackground';
 
 const categoryKey = ['categories'];
 
@@ -128,7 +128,7 @@ export default function SettingsScreen() {
     isLoading || isFetching || deleteMutation.isPending || setDefaultMutation.isPending;
 
   return (
-    <ThemedView style={styles.screen}>
+    <HomeBackground>
       <ProfileHeader user={user ? { name: user.name ?? user.email, avatarUrl: undefined } : null} />
 
       <View style={styles.container}>
@@ -214,7 +214,7 @@ export default function SettingsScreen() {
           />
         </View>
       </View>
-    </ThemedView>
+    </HomeBackground>
   );
 }
 

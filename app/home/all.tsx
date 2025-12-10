@@ -5,13 +5,13 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-
 
 import { getTransactionsFiltered, type TransactionFilters } from '@/api/transactions';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { ProfileHeader } from '@/components/ProfileHeader';
 import { useAuth } from '@/hooks/useAuth';
 import type { Transaction } from '@/types';
 import { TransactionRow } from './all/_components/TransactionRow';
 import { FilterCard } from './all/_components/FilterCard';
 import { AddTransactionSheet } from './_components/AddTransactionSheet';
+import { HomeBackground } from './_components/HomeBackground';
 
 type TypeFilter = 'all' | 'income' | 'expense';
 
@@ -52,7 +52,7 @@ export default function AllTransactionsScreen() {
   const transactions = data?.transactions ?? [];
 
   return (
-    <ThemedView style={styles.screen}>
+    <HomeBackground>
       <ProfileHeader user={user ? { name: user.name ?? user.email, avatarUrl: undefined } : null} />
 
       <View style={styles.container}>
@@ -101,7 +101,7 @@ export default function AllTransactionsScreen() {
         visible={isAddOpen}
         onClose={() => setIsAddOpen(false)}
       />
-    </ThemedView>
+    </HomeBackground>
   );
 }
 

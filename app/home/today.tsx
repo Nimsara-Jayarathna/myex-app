@@ -6,12 +6,12 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-
 import { ProfileHeader } from '@/components/ProfileHeader';
 import { getTransactionsFiltered, type TransactionFilters } from '@/api/transactions';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/hooks/useAuth';
 import type { Transaction } from '@/types';
 import { SummaryCard } from './today/_components/SummaryCard';
 import { TransactionRow } from './today/_components/TransactionRow';
 import { AddTransactionSheet } from './_components/AddTransactionSheet';
+import { HomeBackground } from './_components/HomeBackground';
 
 const transactionKey = ['transactions'];
 
@@ -54,14 +54,12 @@ export default function TodayScreen() {
   }, [todayData]);
 
   return (
-    <ThemedView style={styles.screen}>
+    <HomeBackground>
       <ProfileHeader user={user ? { name: user.name ?? user.email, avatarUrl: undefined } : null} />
 
       <View style={styles.container}>
-        <View style={styles.summaryRow}>
-          <SummaryCard label="Income" value={todayIncome} color="#2ecc71" />
-          <SummaryCard label="Expenses" value={todayExpense} color="#e74c3c" />
-          <SummaryCard label="Balance" value={todayBalance} color="#3498db" />
+        <View style={styles.summaryWrapper}>
+          <SummaryCard income={todayIncome} expense={todayExpense} balance={todayBalance} />
         </View>
 
         {isTodayLoading && (
@@ -109,7 +107,7 @@ export default function TodayScreen() {
         visible={isAddOpen}
         onClose={() => setIsAddOpen(false)}
       />
-    </ThemedView>
+    </HomeBackground>
   );
 }
 
@@ -130,21 +128,8 @@ const styles = StyleSheet.create({
   subtitle: {
     textAlign: 'center',
   },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
+  summaryWrapper: {
     marginBottom: 16,
-  },
-  summaryCard: {
-    // kept for backwards-compatibility if needed elsewhere;
-    // SummaryCard now owns its own styles.
-  },
-  summaryLabel: {
-    // moved into SummaryCard component
-  },
-  summaryValue: {
-    // moved into SummaryCard component
   },
   sectionTitle: {
     marginBottom: 12,
