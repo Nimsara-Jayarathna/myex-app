@@ -42,8 +42,14 @@ app-example
 /ios
 /android
 
+# Local design notes (not for commit)
+myex-design-language.md
+myex-icon-spec.md
+
 # For JetBrains:
 /.idea
 
 # For VS Code (more strict):
 /.vscode
+
+.env
