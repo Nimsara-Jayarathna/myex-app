@@ -35,6 +35,7 @@ export default function AllTransactionsScreen() {
     sortDirection: 'desc',
   });
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isFabDimmed, setIsFabDimmed] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['transactions', 'all', filters],
@@ -81,6 +82,15 @@ export default function AllTransactionsScreen() {
             data={transactions}
             keyExtractor={item => String(item.id ?? `${item.date}-${item.amount}-${item.title}`)}
             contentContainerStyle={styles.listContent}
+            onScroll={event => {
+              const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+              const paddingToBottom = 32;
+              const reachedBottom =
+                layoutMeasurement.height + contentOffset.y >=
+                contentSize.height - paddingToBottom;
+              setIsFabDimmed(reachedBottom);
+            }}
+            scrollEventThrottle={16}
             renderItem={({ item }) => <TransactionRow transaction={item} />}
           />
         )}
@@ -90,7 +100,7 @@ export default function AllTransactionsScreen() {
           accessibilityLabel="Add transaction"
           style={({ pressed }) => [
             styles.fab,
-            pressed && styles.fabPressed,
+            (pressed || isFabDimmed) && styles.fabPressed,
           ]}
           onPress={() => setIsAddOpen(true)}>
           <ThemedText style={styles.fabText}>+</ThemedText>
@@ -149,7 +159,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   fabPressed: {
-    opacity: 0.9,
+    opacity: 0.35,
   },
   fabText: {
     color: '#ffffff',
