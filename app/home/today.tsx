@@ -1,10 +1,9 @@
 import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 
 import { ProfileHeader } from '@/components/ProfileHeader';
-import { logoutSession } from '@/api/auth';
 import { getTransactionsFiltered, type TransactionFilters } from '@/api/transactions';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -14,7 +13,7 @@ import type { Transaction } from '@/types';
 const transactionKey = ['transactions'];
 
 export default function TodayScreen() {
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const todayDate = dayjs().format('YYYY-MM-DD');
 
   const [todayTransactions, setTodayTransactions] = useState<Transaction[]>([]);
@@ -50,20 +49,6 @@ export default function TodayScreen() {
     setTodayBalance(income - expense);
   }, [todayData]);
 
-  const displayName = useMemo(
-    () => user?.name?.split(' ')[0] ?? user?.email ?? 'there',
-    [user]
-  );
-
-  const handleLogout = async () => {
-    try {
-      await logoutSession();
-    } catch {
-      // silent
-    }
-    logout();
-  };
-
   return (
     <ThemedView style={styles.screen}>
       <ProfileHeader user={user ? { name: user.name ?? user.email, avatarUrl: undefined } : null} />
@@ -74,10 +59,6 @@ export default function TodayScreen() {
           <SummaryCard label="Expenses" value={todayExpense} color="#e74c3c" />
           <SummaryCard label="Balance" value={todayBalance} color="#3498db" />
         </View>
-
-        <ThemedText type="subtitle" style={styles.sectionTitle}>
-          Today's Activity
-        </ThemedText>
 
         {isTodayLoading && (
           <View style={styles.center}>
@@ -93,12 +74,16 @@ export default function TodayScreen() {
 
         {!isTodayLoading && !isTodayError && todayTransactions.length === 0 ? (
           <View style={styles.center}>
-            <ThemedText>No activity today. Add a transaction on the web to see it here.</ThemedText>
+            <ThemedText>
+              No activity today. Add a transaction on the web to see it here.
+            </ThemedText>
           </View>
         ) : (
           <FlatList
             data={todayTransactions}
-            keyExtractor={item => String(item.id ?? `${item.date}-${item.amount}-${item.title}`)}
+            keyExtractor={item =>
+              String(item.id ?? `${item.date}-${item.amount}-${item.title}`)
+            }
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => <TransactionRow transaction={item} />}
           />
@@ -148,6 +133,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingVertical: 24,
+    gap: 16,
   },
   title: {
     textAlign: 'center',
@@ -165,9 +151,16 @@ const styles = StyleSheet.create({
   summaryCard: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 24,
     paddingVertical: 12,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
+    borderColor: 'rgba(211,216,224,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 6,
   },
   summaryLabel: {
     fontSize: 12,
@@ -178,7 +171,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   sectionTitle: {
-    marginBottom: 8,
+    marginBottom: 12,
+    fontSize: 16,
+    fontWeight: '600',
   },
   center: {
     alignItems: 'center',
@@ -186,15 +181,24 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   listContent: {
-    paddingBottom: 24,
+    paddingBottom: 4,
+    gap: 8,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ccc',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(211,216,224,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 3,
   },
   rowLeft: {
     flex: 1,

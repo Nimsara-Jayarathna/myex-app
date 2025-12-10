@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { getTransactionsFiltered, type TransactionFilters } from '@/api/transactions';
 import { ThemedText } from '@/components/themed-text';
@@ -19,6 +19,8 @@ interface AllFilters {
   sortField: 'date' | 'amount' | 'category';
   sortDirection: 'asc' | 'desc';
 }
+
+const accentColor = '#3498db';
 
 export default function AllTransactionsScreen() {
   const { isAuthenticated, user } = useAuth();
@@ -52,92 +54,130 @@ export default function AllTransactionsScreen() {
       <ProfileHeader user={user ? { name: user.name ?? user.email, avatarUrl: undefined } : null} />
 
       <View style={styles.container}>
-        <View style={styles.filtersRow}>
-          <View style={styles.filterColumn}>
-            <ThemedText style={styles.filterLabel}>From</ThemedText>
-            <ThemedText
-              style={styles.filterValue}
-              onPress={() =>
-                setFilters(current => ({
-                  ...current,
-                  startDate: today,
-                }))
-              }>
-              {filters.startDate ?? 'Any'}
-            </ThemedText>
+        <View style={styles.filterCard}>
+          <View style={styles.filtersRow}>
+            <View style={styles.filterColumn}>
+              <ThemedText style={styles.filterLabel}>From</ThemedText>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Set start date"
+                style={({ pressed }) => [
+                  styles.filterPill,
+                  pressed && styles.filterPillPressed,
+                ]}
+                onPress={() =>
+                  setFilters(current => ({
+                    ...current,
+                    startDate: today,
+                  }))
+                }>
+                <ThemedText style={styles.filterPillText}>
+                  {filters.startDate ?? 'Any'}
+                </ThemedText>
+              </Pressable>
+            </View>
+            <View style={styles.filterColumn}>
+              <ThemedText style={styles.filterLabel}>To</ThemedText>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Set end date"
+                style={({ pressed }) => [
+                  styles.filterPill,
+                  pressed && styles.filterPillPressed,
+                ]}
+                onPress={() =>
+                  setFilters(current => ({
+                    ...current,
+                    endDate: today,
+                  }))
+                }>
+                <ThemedText style={styles.filterPillText}>
+                  {filters.endDate ?? 'Any'}
+                </ThemedText>
+              </Pressable>
+            </View>
+            <View style={styles.filterColumn}>
+              <ThemedText style={styles.filterLabel}>Type</ThemedText>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Toggle transaction type filter"
+                style={({ pressed }) => [
+                  styles.filterPill,
+                  styles.filterPillSegmented,
+                  pressed && styles.filterPillPressed,
+                ]}
+                onPress={() =>
+                  setFilters(current => ({
+                    ...current,
+                    typeFilter:
+                      current.typeFilter === 'all'
+                        ? 'income'
+                        : current.typeFilter === 'income'
+                        ? 'expense'
+                        : 'all',
+                  }))
+                }>
+                <ThemedText style={styles.filterPillTextAccent}>
+                  {filters.typeFilter === 'all'
+                    ? 'All'
+                    : filters.typeFilter === 'income'
+                    ? 'Income'
+                    : 'Expense'}
+                </ThemedText>
+              </Pressable>
+            </View>
           </View>
-          <View style={styles.filterColumn}>
-            <ThemedText style={styles.filterLabel}>To</ThemedText>
-            <ThemedText
-              style={styles.filterValue}
-              onPress={() =>
-                setFilters(current => ({
-                  ...current,
-                  endDate: today,
-                }))
-              }>
-              {filters.endDate ?? 'Any'}
-            </ThemedText>
-          </View>
-          <View style={styles.filterColumn}>
-            <ThemedText style={styles.filterLabel}>Type</ThemedText>
-            <ThemedText
-              style={styles.filterValue}
-              onPress={() =>
-                setFilters(current => ({
-                  ...current,
-                  typeFilter:
-                    current.typeFilter === 'all'
-                      ? 'income'
-                      : current.typeFilter === 'income'
-                      ? 'expense'
-                      : 'all',
-                }))
-              }>
-              {filters.typeFilter === 'all'
-                ? 'All'
-                : filters.typeFilter === 'income'
-                ? 'Income'
-                : 'Expense'}
-            </ThemedText>
-          </View>
-        </View>
 
-        <View style={styles.filtersRow}>
-          <View style={styles.filterColumn}>
-            <ThemedText style={styles.filterLabel}>Sort by</ThemedText>
-            <ThemedText
-              style={styles.filterValue}
-              onPress={() =>
-                setFilters(current => ({
-                  ...current,
-                  sortField:
-                    current.sortField === 'date'
-                      ? 'amount'
-                      : current.sortField === 'amount'
-                      ? 'category'
-                      : 'date',
-                }))
-              }>
-              {filters.sortField === 'date'
-                ? 'Date'
-                : filters.sortField === 'amount'
-                ? 'Amount'
-                : 'Category'}
-            </ThemedText>
-          </View>
-          <View style={styles.filterColumn}>
-            <ThemedText style={styles.filterLabel}>Direction</ThemedText>
-            <ThemedText
-              style={styles.filterValue}
-              onPress={() =>
-                setFilters(current => ({
-                  ...current,
-                  sortDirection: current.sortDirection === 'asc' ? 'desc' : 'asc',
-                }))
-              }>
-              {filters.sortDirection === 'asc' ? 'Ascending' : 'Descending'}
-            </ThemedText>
+          <View style={styles.filtersRow}>
+            <View style={styles.filterColumn}>
+              <ThemedText style={styles.filterLabel}>Sort by</ThemedText>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Change sort field"
+                style={({ pressed }) => [
+                  styles.filterPill,
+                  pressed && styles.filterPillPressed,
+                ]}
+                onPress={() =>
+                  setFilters(current => ({
+                    ...current,
+                    sortField:
+                      current.sortField === 'date'
+                        ? 'amount'
+                        : current.sortField === 'amount'
+                        ? 'category'
+                        : 'date',
+                  }))
+                }>
+                <ThemedText style={styles.filterPillText}>
+                  {filters.sortField === 'date'
+                    ? 'Date'
+                    : filters.sortField === 'amount'
+                    ? 'Amount'
+                    : 'Category'}
+                </ThemedText>
+              </Pressable>
+            </View>
+            <View style={styles.filterColumn}>
+              <ThemedText style={styles.filterLabel}>Direction</ThemedText>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Toggle sort direction"
+                style={({ pressed }) => [
+                  styles.filterPill,
+                  pressed && styles.filterPillPressed,
+                ]}
+                onPress={() =>
+                  setFilters(current => ({
+                    ...current,
+                    sortDirection: current.sortDirection === 'asc' ? 'desc' : 'asc',
+                  }))
+                }>
+                <ThemedText style={styles.filterPillText}>
+                  {filters.sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+                </ThemedText>
+              </Pressable>
+            </View>
           </View>
         </View>
 
@@ -201,6 +241,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingVertical: 24,
+    gap: 16,
   },
   title: {
     textAlign: 'center',
@@ -213,7 +254,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
-    marginBottom: 12,
   },
   filterColumn: {
     flex: 1,
@@ -221,12 +261,7 @@ const styles = StyleSheet.create({
   filterLabel: {
     fontSize: 12,
     opacity: 0.7,
-    marginBottom: 4,
-  },
-  filterValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
+    marginBottom: 6,
   },
   center: {
     alignItems: 'center',
@@ -234,15 +269,66 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   listContent: {
-    paddingBottom: 24,
+    paddingTop: 8,
+    paddingBottom: 4,
+    gap: 8,
+  },
+  filterCard: {
+    borderRadius: 24,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(211,216,224,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 8,
+    gap: 12,
+  },
+  filterPill: {
+    minHeight: 32,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(211,216,224,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterPillSegmented: {
+    borderColor: accentColor,
+    backgroundColor: 'rgba(52,152,219,0.06)',
+  },
+  filterPillPressed: {
+    opacity: 0.9,
+  },
+  filterPillText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  filterPillTextAccent: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: accentColor,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ccc',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(211,216,224,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 3,
   },
   rowLeft: {
     flex: 1,
