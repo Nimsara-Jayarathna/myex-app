@@ -220,9 +220,7 @@ export default function ProfileScreen() {
             ]}>
             <ThemedText style={styles.logoutText}>Log out</ThemedText>
           </Pressable>
-          <ThemedText style={[styles.versionText, { color: colors.textMuted }]}>
-            Version {version}
-          </ThemedText>
+
         </View>
     </HomeContent>
   );
