@@ -35,7 +35,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // 5-Column Math
 const GRID_GAP = 8;
 const PADDING_H = 24;
-const CHIP_WIDTH = (SCREEN_WIDTH - (PADDING_H * 2) - (GRID_GAP * 4)) / 5;
+const CHIP_WIDTH = (SCREEN_WIDTH - (PADDING_H * 2) - (GRID_GAP * 4) - 2) / 5;
 
 const OFFLINE_CATEGORIES: CategoryOption[] = [
   { id: 'offline-income', name: 'Income', type: 'income', isDefault: true },
@@ -75,6 +75,7 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [note, setNote] = useState('');
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const isDark = resolvedTheme === 'dark';
   const canAdd = capabilities.canAdd;
@@ -142,7 +143,7 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
   useEffect(() => {
     const nextFiltered = categories.filter(category => category.type === transactionType);
     // Force exactly 10 items (5x2 grid)
-    setFilteredCategories(nextFiltered.slice(0, 10));
+    setFilteredCategories(nextFiltered);
     if (nextFiltered.length > 0) {
       const defaultForType = nextFiltered.find(category => category.isDefault);
       setSelectedCategory(defaultForType?.id ?? nextFiltered[0]?.id ?? '');
@@ -216,7 +217,9 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
     const sanitized = value.replace(/[^0-9.]/g, '');
     const parts = sanitized.split('.');
     const next =
-      parts.length <= 2 ? sanitized : `${parts[0]}.${parts.slice(1).join('')}`;
+      parts.length <= 2 
+        ? `${parts[0]}${parts.length > 1 ? '.' + parts[1].slice(0, 2) : ''}`
+        : `${parts[0]}.${parts[1].slice(0, 2)}`;
     setAmount(next);
   };
 
@@ -308,23 +311,37 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
                   <ThemedText style={styles.label}>Category</ThemedText>
                   <View style={styles.categoryGrid}>
                     {isLoadingCategories ? <ActivityIndicator size="small" color={colors.primaryAccent} /> :
-                      filteredCategories.map(cat => (
-                        <Pressable
-                          key={cat.id}
-                          onPress={() => setSelectedCategory(cat.id)}
-                          disabled={!capabilities.canSelectCategory}
-                          style={[
-                            styles.catChip,
-                            { backgroundColor: colors.surface2, borderColor: colors.borderSoft },
-                            selectedCategory === cat.id && { borderColor: colors.primaryAccent, backgroundColor: colors.primaryAccent + '15' },
-                            !capabilities.canSelectCategory && { opacity: 0.6 },
-                          ]}
-                        >
-                          <Text numberOfLines={1} style={[styles.catName, { color: colors.textMain }, selectedCategory === cat.id && { color: colors.primaryAccent, fontWeight: 'bold' }]}>
-                            {cat.name}
-                          </Text>
-                        </Pressable>
-                      ))}
+                      <>
+                        {(isExpanded ? filteredCategories : filteredCategories.slice(0, 10)).map(cat => (
+                          <Pressable
+                            key={cat.id}
+                            onPress={() => setSelectedCategory(cat.id)}
+                            disabled={!capabilities.canSelectCategory}
+                            style={[
+                              styles.catChip,
+                              { backgroundColor: colors.surface2, borderColor: colors.borderSoft },
+                              selectedCategory === cat.id && { borderColor: colors.primaryAccent, backgroundColor: colors.primaryAccent + '15' },
+                              !capabilities.canSelectCategory && { opacity: 0.6 },
+                            ]}
+                          >
+                            <Text numberOfLines={1} style={[styles.catName, { color: colors.textMain }, selectedCategory === cat.id && { color: colors.primaryAccent, fontWeight: 'bold' }]}>
+                              {cat.name}
+                            </Text>
+                          </Pressable>
+                        ))}
+                        {filteredCategories.length > 10 && (
+                          <Pressable
+                            onPress={() => setIsExpanded(!isExpanded)}
+                            style={[styles.showMoreBtn, { width: '100%' }]}
+                          >
+                            <ThemedText style={{ color: colors.textMuted, fontSize: 12, fontWeight: '600' }}>
+                              {isExpanded ? 'Show Less' : `+${filteredCategories.length - 10} More`}
+                            </ThemedText>
+                            <MaterialIcons name={isExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"} size={16} color={colors.textMuted} />
+                          </Pressable>
+                        )}
+                      </>
+                    }
                   </View>
                 </View>
 
@@ -444,4 +461,6 @@ const styles = StyleSheet.create({
   pickerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   pickerPopup: { width: '85%', padding: 20, borderRadius: 24, overflow: 'hidden' },
   pickerDoneBtn: { alignSelf: 'flex-end', marginTop: 10, padding: 10 },
+
+  showMoreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 4, marginTop: 4 },
 });
