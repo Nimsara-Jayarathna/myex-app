@@ -188,8 +188,10 @@ export default function RegisterScreen() {
         setOtpDigits(['', '', '', '', '', '']);
         setBlockingState('idle');
         setBlockingMessage(undefined);
-        // Refocus first input
-        otpRefs.current[0]?.focus();
+        // Refocus first input after state updates
+        setTimeout(() => {
+          otpRefs.current[0]?.focus();
+        }, 100);
       }, 2000);
     },
   });
@@ -237,10 +239,20 @@ export default function RegisterScreen() {
     // Only allow numbers
     const numericValue = value.replace(/[^0-9]/g, '');
     
+    if (numericValue.length === 0) {
+      // Clear current box
+      const newOtpDigits = [...otpDigits];
+      newOtpDigits[index] = '';
+      setOtpDigits(newOtpDigits);
+      return;
+    }
+    
     if (numericValue.length > 1) {
-      // Handle paste
+      // Handle paste or multiple characters
       const digits = numericValue.slice(0, 6).split('');
       const newOtpDigits = [...otpDigits];
+      
+      // Fill from current index
       digits.forEach((digit, i) => {
         if (index + i < 6) {
           newOtpDigits[index + i] = digit;
@@ -249,7 +261,7 @@ export default function RegisterScreen() {
       setOtpDigits(newOtpDigits);
       
       // Focus last filled box or last box
-      const nextIndex = Math.min(index + digits.length, 5);
+      const nextIndex = Math.min(index + digits.length - 1, 5);
       otpRefs.current[nextIndex]?.focus();
     } else {
       // Single digit input
@@ -258,7 +270,7 @@ export default function RegisterScreen() {
       setOtpDigits(newOtpDigits);
       
       // Auto-advance to next box
-      if (numericValue && index < 5) {
+      if (index < 5) {
         otpRefs.current[index + 1]?.focus();
       }
     }
@@ -427,7 +439,6 @@ export default function RegisterScreen() {
                             onChangeText={(value) => handleOtpChange(value, index)}
                             onKeyPress={(e) => handleOtpKeyPress(e, index)}
                             keyboardType="number-pad"
-                            maxLength={1}
                             selectTextOnFocus
                             style={[styles.otpInput, { color: colors.textMain }]}
                           />
