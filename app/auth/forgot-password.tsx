@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -33,6 +33,10 @@ export default function ForgotPasswordScreen() {
     const [blockingState, setBlockingState] = useState<BlockingState>('idle');
     const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
+    // Validation states
+    const [emailTouched, setEmailTouched] = useState(false);
+    const [showEmailValidation, setShowEmailValidation] = useState(false);
+
     const mutation = useMutation({
         mutationFn: forgotPassword,
         onMutate: () => {
@@ -60,6 +64,28 @@ export default function ForgotPasswordScreen() {
         },
     });
 
+    // Email validation with debounce
+    useEffect(() => {
+        if (!emailTouched || email.trim() === '') {
+            setShowEmailValidation(false);
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setShowEmailValidation(true);
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [email, emailTouched]);
+
+    // Validation helper
+    const isValidEmail = (email: string): boolean => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email.trim());
+    };
+
+    const isEmailValid = isValidEmail(email);
+
     const isLoading = mutation.isPending;
 
     const handleSubmit = () => {
@@ -86,7 +112,15 @@ export default function ForgotPasswordScreen() {
                     >
                         {/* Header */}
                         <View style={styles.header}>
-                            <ThemedText type="title" style={[styles.title, { color: colors.textMain }]}>
+                            {/* Back Button */}
+                        <Pressable 
+                            onPress={() => router.back()} 
+                            style={styles.backButton}
+                        >
+                            <MaterialIcons name="arrow-back" size={24} color={colors.textMain} />
+                        </Pressable>
+                        
+                        <ThemedText type="title" style={[styles.title, { color: colors.textMain }]}>
                                 Reset Password
                             </ThemedText>
                             <ThemedText style={[styles.subtitle, { color: colors.textMuted }]}>
@@ -133,7 +167,10 @@ export default function ForgotPasswordScreen() {
                                     />
                                     <TextInput
                                         value={email}
-                                        onChangeText={setEmail}
+                                        onChangeText={(text) => {
+                                            setEmail(text);
+                                            if (!emailTouched) setEmailTouched(true);
+                                        }}
                                         placeholder="name@example.com"
                                         placeholderTextColor={colors.textMuted}
                                         keyboardType="email-address"
@@ -141,14 +178,30 @@ export default function ForgotPasswordScreen() {
                                         style={[styles.input, { color: colors.textMain }]}
                                     />
                                 </View>
+                                
+                                {/* Email Validation Feedback - Error Only */}
+                                {showEmailValidation && email.trim() !== '' && !isEmailValid && (
+                                    <View style={styles.validationFeedback}>
+                                        <View style={styles.validationRow}>
+                                            <MaterialIcons name="error-outline" size={16} color="#e74c3c" />
+                                            <ThemedText style={[styles.validationText, { color: '#e74c3c' }]}>
+                                                Please enter a valid email address
+                                            </ThemedText>
+                                        </View>
+                                    </View>
+                                )}
                             </View>
 
                             <Pressable
                                 onPress={handleSubmit}
-                                disabled={isLoading}
+                                disabled={isLoading || !isEmailValid}
                                 style={({ pressed }) => [
                                     styles.primaryButton,
-                                    { backgroundColor: accentColor, shadowColor: accentColor },
+                                    { 
+                                        backgroundColor: accentColor, 
+                                        shadowColor: accentColor,
+                                        opacity: (isLoading || !isEmailValid) ? 0.5 : 1
+                                    },
                                     pressed && styles.buttonPressed,
                                 ]}>
                                 {isLoading ? (
@@ -197,6 +250,22 @@ const styles = StyleSheet.create({
     inputWrapper: { flexDirection: 'row', alignItems: 'center', height: 50, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14 },
     inputIcon: { marginRight: 10 },
     input: { flex: 1, fontSize: 15, height: '100%' },
+    
+    // Validation Feedback
+    validationFeedback: {
+        marginTop: 6,
+        marginLeft: 4,
+    },
+    validationRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    validationText: {
+        fontSize: 12,
+        fontWeight: '500',
+    },
+    
     primaryButton: { height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 8, shadowOpacity: 0.2, elevation: 4 },
     btnContent: { flexDirection: 'row', gap: 8, alignItems: 'center' },
     primaryButtonText: { color: '#fff', fontWeight: '700' },

@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -43,6 +43,10 @@ export default function LoginScreen() {
   const [blockingState, setBlockingState] = useState<BlockingState>('idle');
   const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
+  // Validation states
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [showEmailValidation, setShowEmailValidation] = useState(false);
+
   const loginMutation = useMutation({
     mutationFn: login,
     onMutate: variables => {
@@ -72,6 +76,29 @@ export default function LoginScreen() {
       setBlockingMessage(msg);
     },
   });
+
+  // Email validation with debounce
+  useEffect(() => {
+    if (!emailTouched || email.trim() === '') {
+      setShowEmailValidation(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setShowEmailValidation(true);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [email, emailTouched]);
+
+  // Validation helper
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email.trim());
+  };
+
+  const isEmailValid = isValidEmail(email);
+  const isFormValid = isEmailValid && password.trim().length > 0;
 
   const isLoading = loginMutation.isPending;
 
@@ -157,7 +184,10 @@ export default function LoginScreen() {
                     />
                     <TextInput
                       value={email}
-                      onChangeText={setEmail}
+                      onChangeText={(text) => {
+                        setEmail(text);
+                        if (!emailTouched) setEmailTouched(true);
+                      }}
                       placeholder="name@example.com"
                       placeholderTextColor={colors.textMuted}
                       keyboardType="email-address"
@@ -165,6 +195,18 @@ export default function LoginScreen() {
                       style={[styles.input, { color: colors.textMain }]}
                     />
                   </View>
+                  
+                  {/* Email Validation Feedback - Error Only */}
+                  {showEmailValidation && email.trim() !== '' && !isEmailValid && (
+                    <View style={styles.validationFeedback}>
+                      <View style={styles.validationRow}>
+                        <MaterialIcons name="error-outline" size={16} color="#e74c3c" />
+                        <ThemedText style={[styles.validationText, { color: '#e74c3c' }]}>
+                          Please enter a valid email address
+                        </ThemedText>
+                      </View>
+                    </View>
+                  )}
                 </View>
   
                 {/* Password Input */}
@@ -203,10 +245,14 @@ export default function LoginScreen() {
                 {/* Submit Button */}
                 <Pressable
                   onPress={handleSubmit}
-                  disabled={isLoading}
+                  disabled={isLoading || !isFormValid}
                   style={({ pressed }) => [
                     styles.primaryButton,
-                    { backgroundColor: accentColor, shadowColor: accentColor },
+                    { 
+                      backgroundColor: accentColor, 
+                      shadowColor: accentColor,
+                      opacity: (isLoading || !isFormValid) ? 0.5 : 1
+                    },
                     pressed && styles.buttonPressed,
                     isLoading && styles.buttonLoading
                   ]}>
@@ -326,6 +372,21 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     height: '100%',
+  },
+
+  // Validation Feedback
+  validationFeedback: {
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  validationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  validationText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 
   forgotPassRow: {
