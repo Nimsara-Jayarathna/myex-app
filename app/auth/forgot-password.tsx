@@ -37,6 +37,10 @@ export default function ForgotPasswordScreen() {
     const [emailTouched, setEmailTouched] = useState(false);
     const [showEmailValidation, setShowEmailValidation] = useState(false);
 
+    // Rate limiting timer
+    const [resendTimer, setResendTimer] = useState(0);
+    const [canResend, setCanResend] = useState(true);
+
     const mutation = useMutation({
         mutationFn: forgotPassword,
         onMutate: () => {
@@ -52,6 +56,10 @@ export default function ForgotPasswordScreen() {
                 setBlockingState('idle');
                 setBlockingMessage(undefined);
                 setSuccessMessage('If that email exists, we sent a reset link.');
+                
+                // Start 60-second timer after successful send
+                setResendTimer(60);
+                setCanResend(false);
             }, 1500);
         },
         onError: (error: any) => {
@@ -77,6 +85,23 @@ export default function ForgotPasswordScreen() {
 
         return () => clearTimeout(timer);
     }, [email, emailTouched]);
+
+    // Timer effect for rate limiting
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (resendTimer > 0) {
+            interval = setInterval(() => {
+                setResendTimer((prev) => {
+                    if (prev <= 1) {
+                        setCanResend(true);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [resendTimer]);
 
     // Validation helper
     const isValidEmail = (email: string): boolean => {
@@ -194,13 +219,13 @@ export default function ForgotPasswordScreen() {
 
                             <Pressable
                                 onPress={handleSubmit}
-                                disabled={isLoading || !isEmailValid}
+                                disabled={isLoading || !isEmailValid || !canResend}
                                 style={({ pressed }) => [
                                     styles.primaryButton,
                                     { 
                                         backgroundColor: accentColor, 
                                         shadowColor: accentColor,
-                                        opacity: (isLoading || !isEmailValid) ? 0.5 : 1
+                                        opacity: (isLoading || !isEmailValid || !canResend) ? 0.5 : 1
                                     },
                                     pressed && styles.buttonPressed,
                                 ]}>
@@ -208,19 +233,14 @@ export default function ForgotPasswordScreen() {
                                     <ActivityIndicator color="#ffffff" />
                                 ) : (
                                     <View style={styles.btnContent}>
-                                        <ThemedText style={styles.primaryButtonText}>Send Reset Link</ThemedText>
+                                        <ThemedText style={styles.primaryButtonText}>
+                                            {canResend ? 'Send Reset Link' : `Resend (${resendTimer}s)`}
+                                        </ThemedText>
                                         <MaterialIcons name="arrow-forward" size={18} color="#fff" />
                                     </View>
                                 )}
                             </Pressable>
 
-                            {successMessage && (
-                                <Pressable onPress={() => router.push('/auth/reset-password')} style={{ marginTop: 16, alignSelf: 'center' }}>
-                                    <ThemedText style={{ color: accentColor, fontWeight: '600' }}>
-                                        Have a code? Enter it here
-                                    </ThemedText>
-                                </Pressable>
-                            )}
 
                         </View>
                     </ScrollView>
