@@ -54,6 +54,10 @@ export default function RegisterScreen() {
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Validation states
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [showEmailValidation, setShowEmailValidation] = useState(false);
+
   // OTP Input Refs
   const otpRefs = useRef<Array<TextInput | null>>([]);
 
@@ -99,6 +103,33 @@ export default function RegisterScreen() {
       }
     }
   }, [otpDigits, step]);
+
+  // Email validation with debounce
+  useEffect(() => {
+    if (!emailTouched || email.trim() === '') {
+      setShowEmailValidation(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setShowEmailValidation(true);
+    }, 500); // Show validation 500ms after user stops typing
+
+    return () => clearTimeout(timer);
+  }, [email, emailTouched]);
+
+  // Validation helpers
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email.trim());
+  };
+
+  const isEmailStepValid = isValidEmail(email);
+  
+  const isDetailsStepValid = 
+    firstName.trim().length > 0 &&
+    lastName.trim().length > 0 &&
+    password.trim().length >= 6;
 
   // Mutations
   const initMutation = useMutation({
@@ -298,11 +329,26 @@ export default function RegisterScreen() {
               <ThemedText type="title" style={[styles.title, { color: colors.textMain }]}>
                 Create Account
               </ThemedText>
-              <ThemedText style={[styles.subtitle, { color: colors.textMuted }]}>
-                {step === 'email' && 'Enter your email to get started.'}
-                {step === 'otp' && `We sent a code to ${email}`}
-                {step === 'details' && 'One last step to set up your profile.'}
-              </ThemedText>
+              {step === 'otp' ? (
+                <View style={styles.subtitleContainer}>
+                  <ThemedText style={[styles.subtitle, { color: colors.textMuted }]}>
+                    We sent a code to{' '}
+                    <ThemedText style={[styles.subtitle, { color: colors.textMain, fontWeight: '600' }]}>
+                      {email}
+                    </ThemedText>
+                  </ThemedText>
+                  <Pressable onPress={handleChangeEmail} disabled={isLoading} style={styles.changeEmailLink}>
+                    <ThemedText style={[styles.linkText, { color: accentColor }]}>
+                      Change email
+                    </ThemedText>
+                  </Pressable>
+                </View>
+              ) : (
+                <ThemedText style={[styles.subtitle, { color: colors.textMuted }]}>
+                  {step === 'email' && 'Enter your email to get started.'}
+                  {step === 'details' && 'One last step to set up your profile.'}
+                </ThemedText>
+              )}
             </View>
 
             {/* --- Card Form --- */}
@@ -328,7 +374,10 @@ export default function RegisterScreen() {
                     <MaterialIcons name="mail-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
                     <TextInput
                       value={email}
-                      onChangeText={setEmail}
+                      onChangeText={(text) => {
+                        setEmail(text);
+                        if (!emailTouched) setEmailTouched(true);
+                      }}
                       placeholder="you@example.com"
                       placeholderTextColor={colors.textMuted}
                       keyboardType="email-address"
@@ -336,6 +385,18 @@ export default function RegisterScreen() {
                       style={[styles.input, { color: colors.textMain }]}
                     />
                   </View>
+                  
+                  {/* Email Validation Feedback - Error Only */}
+                  {showEmailValidation && email.trim() !== '' && !isEmailStepValid && (
+                    <View style={styles.validationFeedback}>
+                      <View style={styles.validationRow}>
+                        <MaterialIcons name="error-outline" size={16} color="#e74c3c" />
+                        <ThemedText style={[styles.validationText, { color: '#e74c3c' }]}>
+                          Please enter a valid email address
+                        </ThemedText>
+                      </View>
+                    </View>
+                  )}
                 </View>
               )}
 
@@ -375,44 +436,23 @@ export default function RegisterScreen() {
                     </View>
                   </View>
 
-                  {/* Change Email & Resend Buttons */}
-                  <View style={styles.otpActions}>
-                    <Pressable
-                      onPress={handleChangeEmail}
-                      disabled={isLoading}
-                      style={({ pressed }) => [
-                        styles.secondaryButton,
-                        { backgroundColor: colors.surface2 },
-                        pressed && styles.buttonPressed,
-                      ]}
-                    >
-                      <MaterialIcons name="arrow-back" size={18} color={colors.textMain} />
-                      <ThemedText style={[styles.secondaryButtonText, { color: colors.textMain }]}>
-                        Change Email
-                      </ThemedText>
-                    </Pressable>
-
-                    <Pressable
-                      onPress={handleResendOtp}
+                  {/* Resend Link */}
+                  <View style={styles.resendContainer}>
+                    <ThemedText style={[styles.resendText, { color: colors.textMuted }]}>
+                      Didn't receive the code?{' '}
+                    </ThemedText>
+                    <Pressable 
+                      onPress={handleResendOtp} 
                       disabled={!canResend || isLoading}
-                      style={({ pressed }) => [
-                        styles.secondaryButton,
-                        { 
-                          backgroundColor: canResend ? colors.surface2 : colors.surface1,
-                          opacity: canResend ? 1 : 0.5,
-                        },
-                        pressed && canResend && styles.buttonPressed,
-                      ]}
+                      style={{ padding: 4 }}
                     >
-                      <MaterialIcons 
-                        name="refresh" 
-                        size={18} 
-                        color={canResend ? colors.textMain : colors.textMuted} 
-                      />
                       <ThemedText 
                         style={[
-                          styles.secondaryButtonText, 
-                          { color: canResend ? colors.textMain : colors.textMuted }
+                          styles.linkText, 
+                          { 
+                            color: canResend ? accentColor : colors.textMuted,
+                            opacity: canResend ? 1 : 0.6
+                          }
                         ]}
                       >
                         {canResend ? 'Resend' : `Resend (${resendTimer}s)`}
@@ -452,7 +492,17 @@ export default function RegisterScreen() {
                   </View>
 
                   <View style={styles.fieldGroup}>
-                    <ThemedText style={[styles.label, { color: colors.textSubtle }]}>Password</ThemedText>
+                    <View style={styles.labelRow}>
+                      <ThemedText style={[styles.label, { color: colors.textSubtle }]}>Password</ThemedText>
+                      <ThemedText 
+                        style={[
+                          styles.charCounter, 
+                          { color: password.length >= 6 ? '#27ae60' : colors.textMuted }
+                        ]}
+                      >
+                        {password.length}/6 characters
+                      </ThemedText>
+                    </View>
                     <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
                       <MaterialIcons name="lock-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
                       <TextInput
@@ -472,10 +522,22 @@ export default function RegisterScreen() {
               {step !== 'otp' && (
                 <Pressable
                   onPress={step === 'email' ? handleEmailSubmit : handleDetailsSubmit}
-                  disabled={isLoading}
+                  disabled={
+                    isLoading || 
+                    (step === 'email' && !isEmailStepValid) ||
+                    (step === 'details' && !isDetailsStepValid)
+                  }
                   style={({ pressed }) => [
                     styles.primaryButton,
-                    { backgroundColor: accentColor, shadowColor: accentColor },
+                    { 
+                      backgroundColor: accentColor, 
+                      shadowColor: accentColor,
+                      opacity: (
+                        isLoading || 
+                        (step === 'email' && !isEmailStepValid) ||
+                        (step === 'details' && !isDetailsStepValid)
+                      ) ? 0.5 : 1
+                    },
                     pressed && styles.buttonPressed,
                   ]}>
                   {isLoading ? (
@@ -558,11 +620,22 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     textAlign: 'center',
   },
+  subtitleContainer: {
+    alignItems: 'center',
+    gap: 6,
+  },
   subtitle: {
     textAlign: 'center',
     fontSize: 14,
     maxWidth: '80%',
     lineHeight: 20,
+  },
+  changeEmailLink: {
+    padding: 4,
+  },
+  linkText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 
   // Card
@@ -640,23 +713,43 @@ const styles = StyleSheet.create({
     height: '100%',
   },
 
-  // OTP Actions
-  otpActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
-  },
-  secondaryButton: {
-    flex: 1,
-    height: 44,
-    borderRadius: 12,
+  // Resend Link
+  resendContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  resendText: {
+    fontSize: 13,
+  },
+
+  // Validation Feedback
+  validationFeedback: {
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  validationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
-  secondaryButtonText: {
-    fontSize: 14,
+  validationText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+
+  // Label Row (for password with counter)
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  charCounter: {
+    fontSize: 11,
     fontWeight: '600',
   },
 
