@@ -19,6 +19,7 @@ import { forgotPassword } from '@/api/auth';
 import { HomeBackground } from '@/components/home/HomeBackground';
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 
 export default function ForgotPasswordScreen() {
     const router = useRouter();
@@ -28,16 +29,34 @@ export default function ForgotPasswordScreen() {
     const [email, setEmail] = useState('');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    
+    const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+    const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
     const mutation = useMutation({
         mutationFn: forgotPassword,
-        onSuccess: () => {
+        onMutate: () => {
             setErrorMessage(null);
-            setSuccessMessage('If that email exists, we sent a reset link.');
+            setSuccessMessage(null);
+            setBlockingState('loading');
+            setBlockingMessage('Sending reset link...');
         },
-        onError: () => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setErrorMessage('Something went wrong. Please try again.');
+        onSuccess: () => {
+            setBlockingState('success');
+            setBlockingMessage('Link sent!');
+            setTimeout(() => {
+                setBlockingState('idle');
+                setBlockingMessage(undefined);
+                setSuccessMessage('If that email exists, we sent a reset link.');
+            }, 1500);
+        },
+        onError: (error: any) => {
+            setBlockingState('error');
+            const msg = error?.response?.data?.error?.message 
+                || error?.response?.data?.message 
+                || 'Something went wrong.';
+            setBlockingMessage(msg);
+            // Fallback for non-blocking error display if needed, but modal handles it.
         },
     });
 
@@ -154,6 +173,11 @@ export default function ForgotPasswordScreen() {
                     </ScrollView>
                 </KeyboardAvoidingView>
             </SafeAreaView>
+            <BlockingModal 
+                state={blockingState} 
+                message={blockingMessage} 
+                onClose={() => setBlockingState('idle')}
+            />
         </HomeBackground>
     );
 }

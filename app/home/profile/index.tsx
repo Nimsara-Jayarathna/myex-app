@@ -8,6 +8,7 @@ import { logoutSession } from '@/api/auth';
 import { HomeContent } from '@/components/home/layout/HomeContent';
 import { ThemedText } from '@/components/themed-text';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import { useOffline } from '@/context/OfflineContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +21,8 @@ export default function ProfileScreen() {
   const router = useRouter();
 
   const [onlineCheckState, setOnlineCheckState] = useState<'idle' | 'checking' | 'success' | 'failed'>('idle');
+  const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+  const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (onlineCheckState === 'success' || onlineCheckState === 'failed') {
@@ -55,12 +58,27 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     try {
+      setBlockingState('loading');
+      setBlockingMessage('Logging out...');
       await logoutSession();
+      // Delay slightly for effect
+      setTimeout(() => {
+        setBlockingState('success'); // Optional: show success before redirect? Or just redirect.
+        // Usually logout is quick. Let's just redirect after a brief moment or immediately.
+        // Actually, let's show success "Logged out" for 1s.
+         setBlockingMessage('See you soon!');
+         setTimeout(() => {
+            setBlockingState('idle');
+            logout();
+            router.replace('/welcome');
+         }, 1000);
+      }, 500);
     } catch {
-      // silent
+       // If logout fails, forced local logout
+       setBlockingState('idle');
+       logout();
+       router.replace('/welcome');
     }
-    logout();
-    router.replace('/welcome');
   };
 
   return (
@@ -222,6 +240,11 @@ export default function ProfileScreen() {
           </Pressable>
 
         </View>
+        <BlockingModal 
+          state={blockingState} 
+          message={blockingMessage} 
+          onClose={() => setBlockingState('idle')} // Usually logout error doesn't need dismissal but fallback
+        />
     </HomeContent>
   );
 }

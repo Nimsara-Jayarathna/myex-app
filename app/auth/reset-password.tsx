@@ -20,6 +20,7 @@ import { resetPassword } from '@/api/auth';
 import { HomeBackground } from '@/components/home/HomeBackground';
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 
 export default function ResetPasswordScreen() {
     const router = useRouter();
@@ -35,17 +36,34 @@ export default function ResetPasswordScreen() {
         if (params.token) setToken(params.token);
     }, [params.token]);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+    const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
     const mutation = useMutation({
         mutationFn: resetPassword,
-        onSuccess: () => {
-            Alert.alert('Success', 'Password reset successfully. Please log in.', [
-                { text: 'OK', onPress: () => router.replace('/login') }
-            ]);
+        onMutate: () => {
+            setErrorMessage(null);
+            setBlockingState('loading');
+            setBlockingMessage('Resetting password...');
         },
-        onError: () => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setErrorMessage('Invalid token or password. Please try again.');
+        onSuccess: () => {
+            setBlockingState('success');
+            setBlockingMessage('Password reset!');
+            setTimeout(() => {
+                setBlockingState('idle');
+                setBlockingMessage(undefined);
+                Alert.alert('Success', 'Password reset successfully. Please log in.', [
+                    { text: 'OK', onPress: () => router.replace('/login') }
+                ]);
+            }, 1500);
+        },
+        onError: (error: any) => {
+            setBlockingState('error');
+            const msg = error?.response?.data?.error?.message 
+                || error?.response?.data?.message 
+                || 'Invalid token or password.';
+            setBlockingMessage(msg);
+            // Fallback
         },
     });
 
@@ -217,6 +235,11 @@ export default function ResetPasswordScreen() {
                     </ScrollView>
                 </KeyboardAvoidingView>
             </SafeAreaView>
+            <BlockingModal 
+                state={blockingState} 
+                message={blockingMessage} 
+                onClose={() => setBlockingState('idle')}
+            />
         </HomeBackground>
     );
 }

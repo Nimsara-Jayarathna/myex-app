@@ -21,6 +21,7 @@ import {
 } from '@/api/auth';
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import { useAuth } from '@/hooks/useAuth';
 
 interface ChangeEmailSheetProps {
@@ -43,50 +44,115 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
     const [changeToken, setChangeToken] = useState('');
 
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    
+    const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+    const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
     // --- Mutations ---
 
     const initMutation = useMutation({
         mutationFn: changeEmailInit,
-        onSuccess: () => {
-            setErrorMessage(null);
-            setStep('verify-current');
+        onMutate: () => {
+            setBlockingState('loading');
+            setBlockingMessage('Sending code...');
         },
-        onError: () => setErrorMessage('Failed to send code to current email.'),
+        onSuccess: () => {
+            setBlockingState('success');
+            setBlockingMessage('Code sent!');
+            setTimeout(() => {
+                setBlockingState('idle');
+                setBlockingMessage(undefined);
+                setErrorMessage(null);
+                setStep('verify-current');
+            }, 1000);
+        },
+        onError: (error: any) => {
+            setBlockingState('error');
+            const msg = error?.response?.data?.error?.message 
+                || error?.response?.data?.message 
+                || 'Failed to send code.';
+            setBlockingMessage(msg);
+        }
     });
 
     const verifyCurrentMutation = useMutation({
         mutationFn: changeEmailVerifyCurrent,
-        onSuccess: (data) => {
-            setChangeToken(data.changeToken);
-            setErrorMessage(null);
-            setStep('request-new');
+        onMutate: () => {
+            setBlockingState('loading');
+            setBlockingMessage('Verifying...');
         },
-        onError: () => setErrorMessage('Invalid code.'),
+        onSuccess: (data) => {
+            setBlockingState('success');
+            setBlockingMessage('Verified!');
+            setTimeout(() => {
+                setBlockingState('idle');
+                setBlockingMessage(undefined);
+                setChangeToken(data.changeToken);
+                setErrorMessage(null);
+                setStep('request-new');
+            }, 1000);
+        },
+        onError: (error: any) => {
+            setBlockingState('error');
+            const msg = error?.response?.data?.error?.message 
+                || error?.response?.data?.message 
+                || 'Invalid code.';
+            setBlockingMessage(msg);
+        }
     });
 
     const requestNewMutation = useMutation({
         mutationFn: changeEmailRequestNew,
-        onSuccess: () => {
-            setErrorMessage(null);
-            setStep('confirm-new');
+        onMutate: () => {
+            setBlockingState('loading');
+            setBlockingMessage('Sending code...');
         },
-        onError: () => setErrorMessage('Failed to send code to new email. It might be in use.'),
+        onSuccess: () => {
+            setBlockingState('success');
+            setBlockingMessage('Code sent!');
+            setTimeout(() => {
+                setBlockingState('idle');
+                setBlockingMessage(undefined);
+                setErrorMessage(null);
+                setStep('confirm-new');
+            }, 1000);
+        },
+        onError: (error: any) => {
+            setBlockingState('error');
+            const msg = error?.response?.data?.error?.message 
+                || error?.response?.data?.message 
+                || 'Failed to send code. Email might be in use.';
+            setBlockingMessage(msg);
+        }
     });
 
     const confirmNewMutation = useMutation({
         mutationFn: changeEmailConfirm,
-        onSuccess: (data) => {
-            Alert.alert('Success', 'Email updated successfully.');
-            // Update local user state
-            updateUser({ email: data.email });
-            onClose();
-            setStep('init');
-            setCurrentOtp('');
-            setNewEmail('');
-            setNewOtp('');
+         onMutate: () => {
+            setBlockingState('loading');
+            setBlockingMessage('Updating email...');
         },
-        onError: () => setErrorMessage('Invalid code.'),
+        onSuccess: (data) => {
+            setBlockingState('success');
+            setBlockingMessage('Email updated!');
+            setTimeout(() => {
+                setBlockingState('idle');
+                setBlockingMessage(undefined);
+                updateUser({ email: data.email });
+                onClose();
+                setStep('init');
+                setCurrentOtp('');
+                setNewEmail('');
+                setNewOtp('');
+            }, 1500);
+        },
+        onError: (error: any) => {
+            setBlockingState('error');
+            const msg = error?.response?.data?.error?.message 
+                || error?.response?.data?.message 
+                || 'Invalid code.';
+            setBlockingMessage(msg);
+        }
     });
 
     const isLoading =
@@ -218,6 +284,11 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
 
                 </View>
             </KeyboardAvoidingView>
+            <BlockingModal 
+                state={blockingState} 
+                message={blockingMessage} 
+                onClose={() => setBlockingState('idle')}
+            />
         </Modal>
     );
 }

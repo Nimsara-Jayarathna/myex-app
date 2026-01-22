@@ -24,6 +24,7 @@ import {
 } from '@/hooks/home/useTransactionLogic';
 import { AllFiltersSheet } from '@/components/home/all/AllFiltersSheet';
 import { FloatingSummaryButton } from '@/components/home/all/FloatingSummaryButton';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 
 export default function AllTransactionsScreen() {
   const { isAuthenticated } = useAuth();
@@ -44,10 +45,32 @@ export default function AllTransactionsScreen() {
 
   const [listLayoutHeight, setListLayoutHeight] = useState(0); 
   const [contentHeight, setContentHeight] = useState(0); 
+  
+  const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+  const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined); 
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteTransaction(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+    onMutate: () => {
+        setBlockingState('loading');
+        setBlockingMessage('Deleting transaction...');
+    },
+    onSuccess: () => {
+        setBlockingState('success');
+        setBlockingMessage('Deleted!');
+        setTimeout(() => {
+            setBlockingState('idle');
+            setBlockingMessage(undefined);
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+        }, 1500);
+    },
+    onError: (error: any) => {
+        setBlockingState('error');
+        const msg = error?.response?.data?.error?.message 
+            || error?.response?.data?.message 
+            || 'Failed to delete transaction.';
+        setBlockingMessage(msg);
+    },
   });
 
   const { data, isLoading, isFetching, refetch } = useQuery({
@@ -173,6 +196,11 @@ export default function AllTransactionsScreen() {
         transactions={filteredTransactions} 
         visible={true} 
       />
+      <BlockingModal 
+          state={blockingState} 
+          message={blockingMessage} 
+          onClose={() => setBlockingState('idle')}
+        />
     </View>
   );
 }

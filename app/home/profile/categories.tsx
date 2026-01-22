@@ -23,6 +23,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useOffline } from '@/context/OfflineContext';
 import { useAuth } from '@/hooks/useAuth';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import type { Category } from '@/types';
 
 import {
@@ -51,6 +52,9 @@ export default function SettingsScreen() {
   // State
   const [activeTab, setActiveTab] = useState<'income' | 'expense'>('income');
   const [newCategoryName, setNewCategoryName] = useState('');
+  
+  const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+  const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
   // Data Fetching
   const {
@@ -96,17 +100,54 @@ export default function SettingsScreen() {
     currentList.some(item => item.name.trim().toLowerCase() === normalizedNewName);
 
   // Mutations
+  // Mutations
   const deleteMutation = useMutation({
     mutationFn: deleteCategory,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: categoryKey }),
+    onMutate: () => {
+        setBlockingState('loading');
+        setBlockingMessage('Deleting category...');
+    },
+    onSuccess: () => {
+        setBlockingState('success');
+        setBlockingMessage('Deleted!');
+        setTimeout(() => {
+            setBlockingState('idle');
+            setBlockingMessage(undefined);
+            queryClient.invalidateQueries({ queryKey: categoryKey });
+        }, 1000);
+    },
+    onError: (error: any) => {
+        setBlockingState('error');
+        const msg = error?.response?.data?.error?.message 
+            || error?.response?.data?.message 
+            || 'Failed to delete category.';
+        setBlockingMessage(msg);
+    }
   });
 
   const setDefaultMutation = useMutation({
     mutationFn: setDefaultCategory,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: categoryKey });
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    onMutate: () => {
+        setBlockingState('loading');
+        setBlockingMessage('Updating default...');
     },
+    onSuccess: () => {
+        setBlockingState('success');
+        setBlockingMessage('Default updated!');
+        setTimeout(() => {
+            setBlockingState('idle');
+            setBlockingMessage(undefined);
+            queryClient.invalidateQueries({ queryKey: categoryKey });
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+        }, 1000);
+    },
+    onError: (error: any) => {
+        setBlockingState('error');
+        const msg = error?.response?.data?.error?.message 
+            || error?.response?.data?.message 
+            || 'Failed to set default.';
+        setBlockingMessage(msg);
+    }
   });
 
   const createMutation = useMutation({
@@ -115,10 +156,27 @@ export default function SettingsScreen() {
         name: newCategoryName.trim(),
         type: activeTab,
       }),
-    onSuccess: () => {
-      setNewCategoryName('');
-      queryClient.invalidateQueries({ queryKey: categoryKey });
+    onMutate: () => {
+        setBlockingState('loading');
+        setBlockingMessage('Adding category...');
     },
+    onSuccess: () => {
+        setBlockingState('success');
+        setBlockingMessage('Added!');
+        setTimeout(() => {
+            setBlockingState('idle');
+            setBlockingMessage(undefined);
+            setNewCategoryName('');
+            queryClient.invalidateQueries({ queryKey: categoryKey });
+        }, 1000);
+    },
+    onError: (error: any) => {
+        setBlockingState('error');
+        const msg = error?.response?.data?.error?.message 
+            || error?.response?.data?.message 
+            || 'Failed to add category.';
+        setBlockingMessage(msg);
+    }
   });
 
   // Handlers
@@ -283,6 +341,11 @@ export default function SettingsScreen() {
             onSetDefault={handleSetDefault}
           />
         </ScrollView>
+        <BlockingModal 
+          state={blockingState} 
+          message={blockingMessage} 
+          onClose={() => setBlockingState('idle')}
+        />
     </KeyboardAvoidingView>
   );
 }

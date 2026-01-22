@@ -17,6 +17,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
 import { runFullSync } from '@/utils/sync-service';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 
 interface EditNameSheetProps {
     visible: boolean;
@@ -30,16 +31,34 @@ export function EditNameSheet({ visible, onClose }: EditNameSheetProps) {
     const [fname, setFname] = useState(user?.fname ?? '');
     const [lname, setLname] = useState(user?.lname ?? '');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    
+    const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+    const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
     const mutation = useMutation({
         mutationFn: updateProfile,
-        onSuccess: (data) => {
-            updateUser(data.user);
-            void runFullSync(data.user);
-            onClose();
+        onMutate: () => {
+            setErrorMessage(null);
+            setBlockingState('loading');
+            setBlockingMessage('Updating profile...');
         },
-        onError: () => {
-            setErrorMessage('Failed to update name.');
+        onSuccess: (data) => {
+            setBlockingState('success');
+            setBlockingMessage('Profile updated!');
+            setTimeout(() => {
+                setBlockingState('idle');
+                setBlockingMessage(undefined);
+                updateUser(data.user);
+                void runFullSync(data.user);
+                onClose();
+            }, 1000);
+        },
+        onError: (error: any) => {
+             setBlockingState('error');
+             const msg = error?.response?.data?.error?.message 
+                || error?.response?.data?.message 
+                || 'Failed to update name.';
+             setBlockingMessage(msg);
         },
     });
 
@@ -114,6 +133,11 @@ export function EditNameSheet({ visible, onClose }: EditNameSheetProps) {
 
                 </View>
             </KeyboardAvoidingView>
+            <BlockingModal 
+                state={blockingState} 
+                message={blockingMessage} 
+                onClose={() => setBlockingState('idle')}
+            />
         </Modal>
     );
 }

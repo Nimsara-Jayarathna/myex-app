@@ -56,10 +56,10 @@ const shouldSkipRefresh = (url?: string) => {
   }
 
   return [
-    `/api/${API_VERSION}/auth/login`,
-    `/api/${API_VERSION}/auth/register`,
-    `/api/${API_VERSION}/auth/refresh`,
-    `/api/${API_VERSION}/auth/logout`,
+    '/auth/login',
+    '/auth/register',
+    '/auth/refresh',
+    '/auth/logout',
   ].some(path => url.includes(path));
 };
 

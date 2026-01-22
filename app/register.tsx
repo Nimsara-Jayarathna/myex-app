@@ -22,6 +22,7 @@ import { HomeBackground } from '@/components/home/HomeBackground';
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 
 // Enable animations for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -47,47 +48,90 @@ export default function RegisterScreen() {
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [registrationToken, setRegistrationToken] = useState('');
+  
+  const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+  const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Mutations
+  // Mutations
   const initMutation = useMutation({
     mutationFn: registerInit,
-    onSuccess: () => {
+    onMutate: () => {
       setErrorMessage(null);
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setStep('otp');
+      setBlockingState('loading');
+      setBlockingMessage('Sending verification code...');
     },
-    onError: () => {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setErrorMessage('Unable to send verification code. Try again.');
+    onSuccess: () => {
+      setBlockingState('success');
+      setBlockingMessage('Code sent!');
+      setTimeout(() => {
+        setBlockingState('idle');
+        setBlockingMessage(undefined);
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setStep('otp');
+      }, 1500);
+    },
+    onError: (error: any) => {
+      setBlockingState('error');
+      const msg = error?.response?.data?.error?.message 
+        || error?.response?.data?.message 
+        || 'Unable to send verification code.';
+      setBlockingMessage(msg);
     },
   });
 
   const verifyMutation = useMutation({
     mutationFn: registerVerify,
-    onSuccess: (data) => {
+    onMutate: () => {
       setErrorMessage(null);
-      setRegistrationToken(data.registrationToken);
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setStep('details');
+      setBlockingState('loading');
+      setBlockingMessage('Verifying code...');
     },
-    onError: () => {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setErrorMessage('Invalid verification code.');
+    onSuccess: (data) => {
+      setBlockingState('success');
+      setBlockingMessage('Verified!');
+      setTimeout(() => {
+        setBlockingState('idle');
+        setBlockingMessage(undefined);
+        setRegistrationToken(data.registrationToken);
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setStep('details');
+      }, 1500);
+    },
+    onError: (error: any) => {
+      setBlockingState('error');
+      const msg = error?.response?.data?.error?.message 
+        || error?.response?.data?.message 
+        || 'Invalid verification code.';
+      setBlockingMessage(msg);
     },
   });
 
   const completeMutation = useMutation({
     mutationFn: registerComplete,
-    onSuccess: (data) => {
-      setAuth(data);
+    onMutate: () => {
       setErrorMessage(null);
-      router.replace('/home');
+      setBlockingState('loading');
+      setBlockingMessage('Creating account...');
     },
-    onError: () => {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setErrorMessage('Failed to create account. Please try again.');
+    onSuccess: (data) => {
+      setBlockingState('success');
+      setBlockingMessage('Welcome to Blipzo!');
+      setTimeout(() => {
+        setBlockingState('idle');
+        setBlockingMessage(undefined);
+        setAuth(data);
+        router.replace('/home');
+      }, 2000);
+    },
+    onError: (error: any) => {
+      setBlockingState('error');
+      const msg = error?.response?.data?.error?.message 
+        || error?.response?.data?.message 
+        || 'Failed to create account.';
+      setBlockingMessage(msg);
     },
   });
 
@@ -307,6 +351,12 @@ export default function RegisterScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
+      
+        <BlockingModal 
+          state={blockingState} 
+          message={blockingMessage} 
+          onClose={() => setBlockingState('idle')}
+        />
     </HomeBackground>
   );
 }

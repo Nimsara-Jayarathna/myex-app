@@ -23,6 +23,7 @@ import { getCategories } from '@/api/categories';
 import { createTransaction } from '@/api/transactions';
 import { ThemedText } from '@/components/themed-text';
 import { useAuthStore } from '@/context/auth-store';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import { useOffline } from '@/context/OfflineContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import type { Category, Transaction, TransactionInput } from '@/types';
@@ -76,6 +77,9 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [note, setNote] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+  const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
   const isDark = resolvedTheme === 'dark';
   const canAdd = capabilities.canAdd;
@@ -152,12 +156,28 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
 
   const mutation = useMutation({
     mutationFn: (payload: TransactionInput) => createTransaction(payload),
-    onSuccess: transaction => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      onTransactionCreated?.(transaction);
-      onClose();
+    onMutate: () => {
+        setBlockingState('loading');
+        setBlockingMessage('Saving transaction...');
     },
-    onError: () => Alert.alert('Error', 'Unable to add transaction'),
+    onSuccess: transaction => {
+      setBlockingState('success');
+      setBlockingMessage('Saved!');
+      setTimeout(() => {
+          setBlockingState('idle');
+          setBlockingMessage(undefined);
+          queryClient.invalidateQueries({ queryKey: ['transactions'] });
+          onTransactionCreated?.(transaction);
+          onClose();
+      }, 1500);
+    },
+    onError: (error: any) => {
+        setBlockingState('error');
+        const msg = error?.response?.data?.error?.message 
+            || error?.response?.data?.message 
+            || 'Unable to add transaction';
+        setBlockingMessage(msg);
+    },
   });
 
   const handleSave = () => {
@@ -174,6 +194,9 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
           : categoryName
             ? JSON.stringify(categoryName)
             : null;
+      setBlockingState('loading');
+      setBlockingMessage('Saving locally...');
+
       void initDb()
         .then(() =>
           insertPendingTransaction({
@@ -191,13 +214,19 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
           })
         )
         .then(() => {
-          queryClient.invalidateQueries({ queryKey: ['transactions', 'today-local'] });
-          triggerToast({ message: 'Saved locally. This will sync when you are back online.' });
-          onClose();
+          setBlockingState('success');
+          setBlockingMessage('Saved locally!');
+          setTimeout(() => {
+             setBlockingState('idle'); // Close modal
+             queryClient.invalidateQueries({ queryKey: ['transactions', 'today-local'] });
+             triggerToast({ message: 'Saved locally. This will sync when you are back online.' });
+             onClose();
+          }, 1500);
         })
         .catch((error) => {
           logError('offline-save: failed', error);
-          Alert.alert('Error', 'Unable to save offline record.');
+          setBlockingState('error');
+          setBlockingMessage('Unable to save offline record.');
         });
       return;
     }
@@ -405,6 +434,11 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
           </Modal>
         </View>
       </KeyboardAvoidingView>
+       <BlockingModal 
+          state={blockingState} 
+          message={blockingMessage} 
+          onClose={() => setBlockingState('idle')}
+        />
     </Modal>
   );
 }

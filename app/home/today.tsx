@@ -18,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOffline } from '@/context/OfflineContext';
 import type { Transaction } from '@/types';
 import { TransactionRow } from '@/components/home/TransactionRow';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import { deleteTransactionByLocalId, getLocalTransactionsByDate, initDb, type LocalTransactionRow } from '@/utils/local-db';
 import {
   HOME_BOTTOM_BAR_CLEARANCE,
@@ -42,6 +43,9 @@ export default function TodayScreen() {
   const [listLayoutHeight, setListLayoutHeight] = useState(0); 
   const [contentHeight, setContentHeight] = useState(0); 
   const [openNoteId, setOpenNoteId] = useState<string | null>(null);
+  
+  const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+  const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
   const {
     data: todayData,
@@ -131,18 +135,44 @@ export default function TodayScreen() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteTransaction(id),
+    onMutate: () => {
+        setBlockingState('loading');
+        setBlockingMessage('Deleting transaction...');
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+        setBlockingState('success');
+        setBlockingMessage('Deleted!');
+        setTimeout(() => {
+            setBlockingState('idle');
+            setBlockingMessage(undefined);
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+        }, 1500);
+    },
+    onError: (error: any) => {
+        setBlockingState('error');
+        const msg = error?.response?.data?.error?.message 
+            || error?.response?.data?.message 
+            || 'Failed to delete transaction.';
+        setBlockingMessage(msg);
     },
   });
 
   const deleteLocalMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Manual delay for effect if instant
+      setBlockingState('loading');
+      setBlockingMessage('Deleting locally...');
       await initDb();
       await deleteTransactionByLocalId(id);
     },
     onSuccess: () => {
-      refetchLocal();
+       setBlockingState('success');
+       setBlockingMessage('Deleted!');
+       setTimeout(() => {
+          setBlockingState('idle');
+          setBlockingMessage(undefined);
+          refetchLocal();
+       }, 1000);
     },
   });
 
@@ -265,6 +295,11 @@ export default function TodayScreen() {
           </Pressable>
         )}
       </HomeStickyHeader>
+      <BlockingModal 
+          state={blockingState} 
+          message={blockingMessage} 
+          onClose={() => setBlockingState('idle')}
+        />
     </HomeContent>
   );
 }
