@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -43,7 +43,7 @@ export default function RegisterScreen() {
 
   // Form Data
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
@@ -54,7 +54,52 @@ export default function RegisterScreen() {
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Mutations
+  // OTP Input Refs
+  const otpRefs = useRef<Array<TextInput | null>>([]);
+
+  // Resend Timer
+  const [resendTimer, setResendTimer] = useState(0);
+  const [canResend, setCanResend] = useState(false);
+
+  // Timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => {
+          if (prev <= 1) {
+            setCanResend(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  // Start timer when entering OTP step
+  useEffect(() => {
+    if (step === 'otp') {
+      setResendTimer(60);
+      setCanResend(false);
+      // Auto-focus first OTP input
+      setTimeout(() => {
+        otpRefs.current[0]?.focus();
+      }, 300);
+    }
+  }, [step]);
+
+  // Auto-verify when all 6 digits are entered
+  useEffect(() => {
+    if (step === 'otp' && otpDigits.every(digit => digit !== '')) {
+      const otp = otpDigits.join('');
+      if (otp.length === 6 && !verifyMutation.isPending) {
+        verifyMutation.mutate({ email: email.trim(), otp });
+      }
+    }
+  }, [otpDigits, step]);
+
   // Mutations
   const initMutation = useMutation({
     mutationFn: registerInit,
@@ -106,6 +151,15 @@ export default function RegisterScreen() {
         || error?.response?.data?.message 
         || 'Invalid verification code.';
       setBlockingMessage(msg);
+      
+      // Clear OTP inputs on error for easy re-entry
+      setTimeout(() => {
+        setOtpDigits(['', '', '', '', '', '']);
+        setBlockingState('idle');
+        setBlockingMessage(undefined);
+        // Refocus first input
+        otpRefs.current[0]?.focus();
+      }, 2000);
     },
   });
 
@@ -148,14 +202,59 @@ export default function RegisterScreen() {
     initMutation.mutate({ email: trimmedEmail });
   };
 
-  const handleOtpSubmit = () => {
-    const trimmedOtp = otp.trim();
-    if (trimmedOtp.length !== 6) {
-      setErrorMessage('Please enter a valid 6-digit code.');
-      return;
+  const handleOtpChange = (value: string, index: number) => {
+    // Only allow numbers
+    const numericValue = value.replace(/[^0-9]/g, '');
+    
+    if (numericValue.length > 1) {
+      // Handle paste
+      const digits = numericValue.slice(0, 6).split('');
+      const newOtpDigits = [...otpDigits];
+      digits.forEach((digit, i) => {
+        if (index + i < 6) {
+          newOtpDigits[index + i] = digit;
+        }
+      });
+      setOtpDigits(newOtpDigits);
+      
+      // Focus last filled box or last box
+      const nextIndex = Math.min(index + digits.length, 5);
+      otpRefs.current[nextIndex]?.focus();
+    } else {
+      // Single digit input
+      const newOtpDigits = [...otpDigits];
+      newOtpDigits[index] = numericValue;
+      setOtpDigits(newOtpDigits);
+      
+      // Auto-advance to next box
+      if (numericValue && index < 5) {
+        otpRefs.current[index + 1]?.focus();
+      }
     }
+  };
+
+  const handleOtpKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent.key === 'Backspace' && !otpDigits[index] && index > 0) {
+      // Move to previous box on backspace if current is empty
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+
+
+  const handleResendOtp = () => {
+    if (!canResend) return;
+    
+    setOtpDigits(['', '', '', '', '', '']);
     setErrorMessage(null);
-    verifyMutation.mutate({ email: email.trim(), otp: trimmedOtp });
+    initMutation.mutate({ email: email.trim() });
+  };
+
+  const handleChangeEmail = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setOtpDigits(['', '', '', '', '', '']);
+    setErrorMessage(null);
+    setStep('email');
   };
 
   const handleDetailsSubmit = () => {
@@ -177,8 +276,6 @@ export default function RegisterScreen() {
     });
   };
 
-
-
   return (
     <HomeBackground>
       <SafeAreaView style={styles.safeArea}>
@@ -195,7 +292,6 @@ export default function RegisterScreen() {
 
             {/* --- Header --- */}
             <View style={styles.header}>
-
               <View style={[styles.logoCircle, { backgroundColor: accentColor, shadowColor: accentColor }]}>
                 <Image source={appIcon} style={styles.logoImage} resizeMode="contain" />
               </View>
@@ -244,23 +340,86 @@ export default function RegisterScreen() {
               )}
 
               {step === 'otp' && (
-                <View style={styles.fieldGroup}>
-                  <ThemedText style={[styles.label, { color: colors.textSubtle }]}>
-                    Verification Code
-                  </ThemedText>
-                  <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
-                    <MaterialIcons name="lock-clock" size={20} color={colors.textMuted} style={styles.inputIcon} />
-                    <TextInput
-                      value={otp}
-                      onChangeText={setOtp}
-                      placeholder="123456"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType="number-pad"
-                      maxLength={6}
-                      style={[styles.input, { color: colors.textMain }]}
-                    />
+                <>
+                  <View style={styles.fieldGroup}>
+                    <ThemedText style={[styles.label, { color: colors.textSubtle }]}>
+                      Enter 6-Digit Code
+                    </ThemedText>
+                    
+                    {/* OTP Input Boxes */}
+                    <View style={styles.otpContainer}>
+                      {otpDigits.map((digit, index) => (
+                        <View
+                          key={index}
+                          style={[
+                            styles.otpBox,
+                            {
+                              backgroundColor: colors.inputBg,
+                              borderColor: digit ? accentColor : colors.inputBorder,
+                              borderWidth: digit ? 2 : 1,
+                            },
+                          ]}
+                        >
+                          <TextInput
+                            ref={(ref) => { otpRefs.current[index] = ref; }}
+                            value={digit}
+                            onChangeText={(value) => handleOtpChange(value, index)}
+                            onKeyPress={(e) => handleOtpKeyPress(e, index)}
+                            keyboardType="number-pad"
+                            maxLength={1}
+                            selectTextOnFocus
+                            style={[styles.otpInput, { color: colors.textMain }]}
+                          />
+                        </View>
+                      ))}
+                    </View>
                   </View>
-                </View>
+
+                  {/* Change Email & Resend Buttons */}
+                  <View style={styles.otpActions}>
+                    <Pressable
+                      onPress={handleChangeEmail}
+                      disabled={isLoading}
+                      style={({ pressed }) => [
+                        styles.secondaryButton,
+                        { backgroundColor: colors.surface2 },
+                        pressed && styles.buttonPressed,
+                      ]}
+                    >
+                      <MaterialIcons name="arrow-back" size={18} color={colors.textMain} />
+                      <ThemedText style={[styles.secondaryButtonText, { color: colors.textMain }]}>
+                        Change Email
+                      </ThemedText>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={handleResendOtp}
+                      disabled={!canResend || isLoading}
+                      style={({ pressed }) => [
+                        styles.secondaryButton,
+                        { 
+                          backgroundColor: canResend ? colors.surface2 : colors.surface1,
+                          opacity: canResend ? 1 : 0.5,
+                        },
+                        pressed && canResend && styles.buttonPressed,
+                      ]}
+                    >
+                      <MaterialIcons 
+                        name="refresh" 
+                        size={18} 
+                        color={canResend ? colors.textMain : colors.textMuted} 
+                      />
+                      <ThemedText 
+                        style={[
+                          styles.secondaryButtonText, 
+                          { color: canResend ? colors.textMain : colors.textMuted }
+                        ]}
+                      >
+                        {canResend ? 'Resend' : `Resend (${resendTimer}s)`}
+                      </ThemedText>
+                    </Pressable>
+                  </View>
+                </>
               )}
 
               {step === 'details' && (
@@ -309,30 +468,28 @@ export default function RegisterScreen() {
                 </>
               )}
 
-              {/* Submit Button */}
-              <Pressable
-                onPress={
-                  step === 'email' ? handleEmailSubmit :
-                    step === 'otp' ? handleOtpSubmit :
-                      handleDetailsSubmit
-                }
-                disabled={isLoading}
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  { backgroundColor: accentColor, shadowColor: accentColor },
-                  pressed && styles.buttonPressed,
-                ]}>
-                {isLoading ? (
-                  <ActivityIndicator color="#ffffff" />
-                ) : (
-                  <View style={styles.btnContent}>
-                    <ThemedText style={styles.primaryButtonText}>
-                      {step === 'details' ? 'Complete Sign Up' : 'Continue'}
-                    </ThemedText>
-                    <MaterialIcons name="arrow-forward" size={18} color="#fff" />
-                  </View>
-                )}
-              </Pressable>
+              {/* Submit Button - Hidden for OTP step (auto-verifies) */}
+              {step !== 'otp' && (
+                <Pressable
+                  onPress={step === 'email' ? handleEmailSubmit : handleDetailsSubmit}
+                  disabled={isLoading}
+                  style={({ pressed }) => [
+                    styles.primaryButton,
+                    { backgroundColor: accentColor, shadowColor: accentColor },
+                    pressed && styles.buttonPressed,
+                  ]}>
+                  {isLoading ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <View style={styles.btnContent}>
+                      <ThemedText style={styles.primaryButtonText}>
+                        {step === 'details' ? 'Complete Sign Up' : 'Continue'}
+                      </ThemedText>
+                      <MaterialIcons name="arrow-forward" size={18} color="#fff" />
+                    </View>
+                  )}
+                </Pressable>
+              )}
 
             </View>
 
@@ -341,7 +498,7 @@ export default function RegisterScreen() {
               <ThemedText style={[styles.footerText, { color: colors.textMuted }]}>
                 Already have an account?
               </ThemedText>
-              <Pressable onPress={() => router.navigate('/login')} style={{ padding: 4 }}>
+              <Pressable onPress={() => router.push('/login')} style={{ padding: 4 }}>
                 <ThemedText style={[styles.footerLink, { color: accentColor }]}>
                   Log in
                 </ThemedText>
@@ -352,11 +509,11 @@ export default function RegisterScreen() {
         </KeyboardAvoidingView>
       </SafeAreaView>
       
-        <BlockingModal 
-          state={blockingState} 
-          message={blockingMessage} 
-          onClose={() => setBlockingState('idle')}
-        />
+      <BlockingModal 
+        state={blockingState} 
+        message={blockingMessage} 
+        onClose={() => setBlockingState('idle')}
+      />
     </HomeBackground>
   );
 }
@@ -372,13 +529,12 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
 
-  // Header styles updated
+  // Header styles
   header: {
     alignItems: 'center',
     marginBottom: 24,
     position: 'relative',
   },
-  // backButton style removed
   logoCircle: {
     width: 60,
     height: 60,
@@ -409,7 +565,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // --- Card ---
+  // Card
   card: {
     borderRadius: 24,
     padding: 24,
@@ -457,6 +613,53 @@ const styles = StyleSheet.create({
     height: '100%',
   },
 
+  // OTP Styles
+  otpContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 16,
+  },
+  otpBox: {
+    flex: 1,
+    height: 56,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  otpInput: {
+    fontSize: 24,
+    fontWeight: '700',
+    textAlign: 'center',
+    width: '100%',
+    height: '100%',
+  },
+
+  // OTP Actions
+  otpActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  secondaryButton: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  secondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
   // Error Banner
   errorBanner: {
     flexDirection: 'row',
@@ -472,7 +675,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Button
+  // Primary Button
   primaryButton: {
     height: 54,
     borderRadius: 16,
