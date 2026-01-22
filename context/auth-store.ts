@@ -9,7 +9,9 @@ interface AuthState {
   user: UserProfile | null;
   isAuthenticated: boolean;
   isSessionChecked: boolean;
+  hasValidSession: boolean;
   setAuth: (payload: AuthResponse) => void;
+  setHasValidSession: (value: boolean) => void;
   markSessionChecked: () => void;
   logout: () => void;
   updateUser: (user: Partial<UserProfile>) => void;
@@ -19,6 +21,7 @@ export const useAuthStore = create<AuthState>(set => ({
   user: null,
   isAuthenticated: false,
   isSessionChecked: false,
+  hasValidSession: false,
   setAuth: ({ user }: AuthResponse) =>
     set(() => {
       void AsyncStorage.setItem(SESSION_CACHE_KEY, 'true');
@@ -26,8 +29,14 @@ export const useAuthStore = create<AuthState>(set => ({
         user,
         isAuthenticated: true,
         isSessionChecked: true,
+        hasValidSession: true,
       };
     }),
+  setHasValidSession: (value: boolean) =>
+    set(state => ({
+      ...state,
+      hasValidSession: value,
+    })),
   updateUser: (updates: Partial<UserProfile>) =>
     set(state => ({
       ...state,
@@ -45,7 +54,7 @@ export const useAuthStore = create<AuthState>(set => ({
         user: null,
         isAuthenticated: false,
         isSessionChecked: true,
+        hasValidSession: false,
       };
     }),
 }));
-

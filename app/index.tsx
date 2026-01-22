@@ -27,7 +27,7 @@ const SESSION_CACHE_KEY = 'has_valid_session';
 
 export default function IndexScreen() {
   const router = useRouter();
-  const { setAuth, logout } = useAuth();
+  const { setAuth, logout, setHasValidSession } = useAuth();
   const { offlineMode, promptToGoOffline, setIsBooting } = useOffline();
   const hasNavigatedRef = useRef(false);
   const sessionCacheLoadedRef = useRef(false);
@@ -66,7 +66,9 @@ export default function IndexScreen() {
     const loadSessionCache = async () => {
       if (sessionCacheLoadedRef.current) return;
       const cached = await AsyncStorage.getItem(SESSION_CACHE_KEY);
-      hasValidSessionRef.current = cached === 'true';
+      const isValidSession = cached === 'true';
+      hasValidSessionRef.current = isValidSession;
+      setHasValidSession(isValidSession);
       sessionCacheLoadedRef.current = true;
     };
 

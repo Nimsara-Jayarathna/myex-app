@@ -93,11 +93,14 @@ apiClient.interceptors.response.use(
     logError('API Response Error', error);
     const status = error.response?.status as number | undefined;
     const originalRequest = error.config as RetriableRequest | undefined;
+    const { hasValidSession, isAuthenticated } = useAuthStore.getState();
+    const canAttemptRefresh = hasValidSession || isAuthenticated;
 
     if (
       originalRequest &&
       isAuthErrorStatus(status) &&
       !originalRequest._retry &&
+      canAttemptRefresh &&
       !shouldSkipRefresh(originalRequest.url)
     ) {
       originalRequest._retry = true;
@@ -168,4 +171,3 @@ export const apiRequest = async <T>(
     throw error;
   }
 };
-
