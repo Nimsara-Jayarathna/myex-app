@@ -24,7 +24,6 @@ import { runFullSync } from '@/utils/sync-service';
 export const login = async (credentials: LoginRequest) => {
   const { data } = await apiClient.post<AuthResponse>(`/api/v1/auth/login`, credentials);
   useAuthStore.getState().setHasValidSession(true);
-  void runFullSync(data?.user);
   return data;
 };
 
@@ -45,7 +44,6 @@ export const registerComplete = async (payload: RegisterCompleteRequest) => {
   const { data } = await apiClient.post<AuthResponse>(`/api/v1.1/auth/register/complete`, payload);
   const responseData = ('data' in data ? (data as any).data : data) as AuthResponse;
   useAuthStore.getState().setHasValidSession(true);
-  void runFullSync(responseData?.user);
   return responseData;
 };
 
@@ -106,7 +104,6 @@ export const getSession = async () => {
 export const refreshSession = async () => {
   const { data } = await apiClient.post<AuthResponse>(`/api/${API_VERSION}/auth/refresh`);
   useAuthStore.getState().setHasValidSession(true);
-  void runFullSync(data?.user);
   return data;
 };
 

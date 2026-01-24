@@ -139,7 +139,6 @@ export default function IndexScreen() {
 
         if (result.status === 'ok') {
           setAuth(result.authData);
-          void runFullSync(result.authData.user);
           await AsyncStorage.setItem(SESSION_CACHE_KEY, 'true');
           hasNavigatedRef.current = true;
           router.replace('/home' as any);

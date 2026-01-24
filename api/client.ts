@@ -69,8 +69,8 @@ const refreshSession = async () => {
   if (!refreshRequest) {
     refreshRequest = apiClient
       .post<AuthResponse>(`/api/${API_VERSION}/auth/refresh`)
-      .then(response => {
-        void runFullSync(response.data?.user);
+      .then(() => {
+        // Just refresh token, no sync side-effect
       })
       .finally(() => {
         refreshRequest = null;

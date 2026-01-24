@@ -2,9 +2,12 @@ import { Tabs, useRouter, useSegments } from 'expo-router';
 import React, { useEffect } from 'react';
 import { Alert } from 'react-native';
 
+import { InteractionManager } from 'react-native';
+
 import { HomeShell } from '@/components/home/layout/HomeShell';
 import { useOffline } from '@/context/OfflineContext';
 import { useAuth } from '@/hooks/useAuth';
+import { runFullSync } from '@/utils/sync-service';
 
 export default function HomeTabLayout() {
   const router = useRouter();
@@ -18,6 +21,19 @@ export default function HomeTabLayout() {
     }
   }, [isAuthenticated, offlineMode, router]);
 
+  // Sync Trigger on Mount (Delayed)
+  useEffect(() => {
+    if (isAuthenticated && user && !offlineMode) {
+      const task = InteractionManager.runAfterInteractions(() => {
+          // Short delay to allow smooth transition before blocking UI
+          setTimeout(() => {
+              void runFullSync(user);
+          }, 800);
+      });
+      return () => task.cancel();
+    }
+  }, [isAuthenticated, offlineMode, user]);
+
   useEffect(() => {
     // Offline route guard: keep users out of blocked sections.
     if (!offlineMode) return;
@@ -26,6 +42,7 @@ export default function HomeTabLayout() {
       return;
     }
 
+    if (segments.length < 2) return;
     const route = segments[1];
     
     // Check for "All" tab
