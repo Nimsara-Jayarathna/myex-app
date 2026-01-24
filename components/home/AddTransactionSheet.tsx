@@ -17,7 +17,9 @@ import {
   Text,
   TextInput,
   View,
+  Animated, // ADDED: For the shake animation
 } from 'react-native';
+import * as Haptics from 'expo-haptics'; // ADDED: For tactile feedback
 
 import { getCategories } from '@/api/categories';
 import { createTransaction } from '@/api/transactions';
@@ -65,6 +67,9 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
   const inputRef = useRef<TextInput>(null);
   const { user } = useAuthStore();
   const currencySymbol = user?.currency?.symbol ?? '$';
+  
+  // Track cursor position for smart decimal handling
+  const [selection, setSelection] = useState({ start: 0, end: 0 });
 
   const [step, setStep] = useState<AddTransactionStep>(1);
   const [amount, setAmount] = useState('');
@@ -81,6 +86,9 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
   const [blockingState, setBlockingState] = useState<BlockingState>('idle');
   const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
+  // INNOVATION: Animated value for the "Physical Wall" shake effect
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+
   const isDark = resolvedTheme === 'dark';
   const canAdd = capabilities.canAdd;
 
@@ -92,6 +100,7 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
       setAmount('');
       setSelectedCategory('');
       setNote('');
+      setSelection({ start: 0, end: 0 });
     }
   }, [visible]);
 
@@ -110,7 +119,7 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
           setIsLoadingCategories(true);
           await initDb();
           const local = await getLocalCategories();
-          const mapped = local.map(item => ({
+          const mapped = local.map((item: any) => ({
             id: item.serverId,
             name: item.name,
             type: item.type,
@@ -172,9 +181,19 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
       }, 1500);
     },
     onError: (error: any) => {
+        // Log full error details for debugging
+        logError('Transaction creation failed', {
+            status: error?.response?.status,
+            statusText: error?.response?.statusText,
+            data: error?.response?.data,
+            message: error?.message,
+            fullError: error,
+        });
+        
         setBlockingState('error');
         const msg = error?.response?.data?.error?.message 
             || error?.response?.data?.message 
+            || error?.message
             || 'Unable to add transaction';
         setBlockingMessage(msg);
     },
@@ -223,7 +242,7 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
              onClose();
           }, 1500);
         })
-        .catch((error) => {
+        .catch((error: any) => {
           logError('offline-save: failed', error);
           setBlockingState('error');
           setBlockingMessage('Unable to save offline record.');
@@ -240,31 +259,66 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
     });
   };
 
-  if (!visible) return null;
+  // INNOVATION: Physical Wall Trigger - Shake + Heavy Haptic
+  const triggerLimitReached = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    
+    // Smooth shake animation sequence
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
+  };
 
+  // INNOVATION: Pre-emptive Logic with Haptic Layering
   const handleAmountChange = (value: string) => {
-    // Remove any non-numeric characters except decimal point
-    let cleaned = value.replace(/[^0-9.]/g, '');
-    
-    // Handle multiple decimal points - only keep the first one
-    const parts = cleaned.split('.');
-    if (parts.length > 2) {
-      cleaned = parts[0] + '.' + parts.slice(1).join('');
-    }
-    
-    // Limit to 2 decimal places - prevent typing more
-    if (parts.length === 2 && parts[1].length > 2) {
-      // Don't update if user tries to type more than 2 decimals
+    // 1. Allow backspace always
+    if (value.length < amount.length) {
+      setAmount(value);
       return;
     }
+
+    // 2. Clean input: only digits and one decimal allowed
+    const cleaned = value.replace(/[^0-9.]/g, '');
     
-    // Prevent leading zeros (except for "0." cases)
-    if (cleaned.length > 1 && cleaned[0] === '0' && cleaned[1] !== '.') {
-      cleaned = cleaned.substring(1);
+    // 3. Prevent multiple decimals (Physical Wall)
+    if ((cleaned.match(/\./g) || []).length > 1) {
+      triggerLimitReached();
+      return;
     }
-    
-    setAmount(cleaned);
+
+    // 4. PRE-EMPTIVE VALIDATION (The Physical Wall)
+    // Check if the typed value breaks the 2-decimal rule BEFORE updating state
+    const decimalIndex = cleaned.indexOf('.');
+    if (decimalIndex !== -1) {
+      const decimals = cleaned.split('.')[1];
+      if (decimals.length > 2) {
+        // Block the update and trigger physical feedback
+        triggerLimitReached();
+        return; 
+      }
+    }
+
+    // 5. Success Path: Tactile feedback for valid typing
+    if (cleaned.endsWith('.')) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // "Click" for decimal
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // "Tap" for numbers
+    }
+
+    // 6. Formatting handling (zeros and decimals)
+    let final = cleaned;
+    if (final.startsWith('.')) final = '0' + final;
+    if (final.length > 1 && final[0] === '0' && final[1] !== '.') {
+      final = final.replace(/^0+/, '');
+    }
+
+    setAmount(final);
   };
+
+  if (!visible) return null;
 
   return (
     <Modal
@@ -301,20 +355,29 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
             {step === 1 ? (
               <View style={styles.stepContainer}>
-                {/* AMOUNT INPUT: Fixed symbol clipping and alignment */}
+                {/* AMOUNT INPUT: Innovated with Physical Wall & Micro-Haptics */}
                 <View style={styles.amountContainer}>
-                  <Text style={[styles.currency, { color: colors.textSubtle }]}>{currencySymbol}</Text>
-                  <TextInput
-                    ref={inputRef}
-                    value={amount}
-                    onChangeText={handleAmountChange}
-                    keyboardType={Platform.OS === 'android' ? 'numeric' : 'decimal-pad'}
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    placeholderTextColor={colors.textSubtle}
-                    style={[styles.mainInput, { color: colors.textMain }]}
-                    maxLength={10}
-                  />
+                  <Animated.View 
+                    style={[
+                      styles.amountInputWrapper,
+                      { transform: [{ translateX: shakeAnim }] } // Apply the physical shake
+                    ]}
+                  >
+                    <Text style={[styles.currency, { color: colors.textSubtle }]}>{currencySymbol}</Text>
+                    <TextInput
+                      ref={inputRef}
+                      value={amount}
+                      onChangeText={handleAmountChange}
+                      onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+                      keyboardType={Platform.OS === 'android' ? 'numeric' : 'decimal-pad'}
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      placeholderTextColor={colors.textSubtle}
+                      style={[styles.mainInput, { color: colors.textMain }]}
+                      maxLength={10}
+                      disableExtractUI={true} // Prevents stutter/UI issues on some Android screens
+                    />
+                  </Animated.View>
                 </View>
 
                 <ThemedText style={styles.typeLabel}>Select transaction type</ThemedText>
@@ -473,13 +536,25 @@ const styles = StyleSheet.create({
   // Amount Section Fixes
   amountContainer: {
     flexDirection: 'row',
-    alignItems: 'center', // Changed to center for better input compatibility
+    alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 30,
-    height: 120, // Explicit height to prevent clipping
+    minHeight: 120,
   },
-  currency: { fontSize: 32, fontWeight: '600', marginRight: 10 },
-  mainInput: { fontSize: 64, fontWeight: 'bold', minWidth: 160, textAlign: 'center', height: 80, padding: 0 },
+  amountInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  currency: { fontSize: 32, fontWeight: '600' },
+  mainInput: { 
+    fontSize: 64, 
+    fontWeight: 'bold', 
+    minWidth: 180,
+    textAlign: 'left',
+    padding: 0,
+    margin: 0,
+  },
 
   typeLabel: { textAlign: 'center', fontSize: 13, opacity: 0.6 },
   typeRow: { flexDirection: 'row', gap: 12 },
