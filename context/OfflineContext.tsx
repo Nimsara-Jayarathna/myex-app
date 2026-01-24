@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/api/client';
 import { refreshSession } from '@/api/auth';
 import { useAuth } from '@/hooks/useAuth';
+import { BlockingState } from '@/components/ui/BlockingModal';
 import { registerOfflinePrompt, type OfflinePromptPayload } from '@/utils/offline-prompt';
 
 export type Capabilities = {
@@ -34,6 +35,9 @@ type OfflineContextValue = {
   confirmOfflineMode: () => void;
   retryConnection: () => void;
   tryGoOnline: () => Promise<boolean>;
+  reconnectionState: BlockingState;
+  reconnectionMessage: string;
+  resetReconnectionState: () => void;
   isBooting: boolean;
   setIsBooting: (next: boolean) => void;
   capabilities: Capabilities;
@@ -57,6 +61,8 @@ export const OfflineProvider: React.FC<React.PropsWithChildren> = ({ children })
   }>({ visible: false, reason: '', allowOffline: true, primaryLabel: 'Retry' });
   const [isPromptRetrying, setIsPromptRetrying] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
+  const [reconnectionState, setReconnectionState] = useState<BlockingState>('idle');
+  const [reconnectionMessage, setReconnectionMessage] = useState<string>('');
   const lastOfflineRef = useRef(manualOffline);
   const suppressPromptUntilRef = useRef(0);
 
@@ -140,25 +146,52 @@ export const OfflineProvider: React.FC<React.PropsWithChildren> = ({ children })
   }, [promptState.onRetry]);
 
   const tryGoOnline = useCallback(async () => {
+    // Step 1: Start loading
+    setReconnectionState('loading');
+    setReconnectionMessage('Checking server connection...');
+    
     try {
+      // Step 2: Health check
       await apiClient.get('/health', { timeout: 5000 });
+      
+      // Step 3: Refresh session
+      setReconnectionMessage('Refreshing your session...');
       const refreshed = await refreshSession();
       
       if (refreshed?.user) {
         setAuth(refreshed);
       }
       
+      // Step 4: Success!
+      setReconnectionState('success');
+      setReconnectionMessage('Successfully reconnected!');
+      
+      // Auto-dismiss after animation
+      setTimeout(() => {
+        setReconnectionState('idle');
+        setReconnectionMessage('');
+      }, 2000);
+      
       suppressPromptUntilRef.current = Date.now() + 5000;
       setNetworkConnected(true);
       setManualOffline(false);
       return true;
+      
     } catch (error: any) {
-      openPrompt('Still offline. Please check your connection.', async () => {
-        await apiClient.get('/health', { timeout: 5000 });
-      });
+      // Step 5: Error handling
+      setReconnectionState('error');
+      const errorMsg = error?.response?.status === 401
+        ? 'Session expired. Please log in again.'
+        : error?.code === 'ECONNABORTED' || error?.code === 'ERR_NETWORK'
+        ? 'No internet connection. Please check your network.'
+        : 'Reconnection failed. Please try again.';
+      
+      setReconnectionMessage(errorMsg);
+      
+      // Don't auto-dismiss error - let user close it
       return false;
     }
-  }, [openPrompt, setAuth, networkConnected, manualOffline, offlineMode]);
+  }, [setAuth]);
 
   useEffect(() => {
     if (lastOfflineRef.current && !manualOffline) {
@@ -260,6 +293,12 @@ export const OfflineProvider: React.FC<React.PropsWithChildren> = ({ children })
         confirmOfflineMode,
         retryConnection,
         tryGoOnline,
+        reconnectionState,
+        reconnectionMessage,
+        resetReconnectionState: () => {
+          setReconnectionState('idle');
+          setReconnectionMessage('');
+        },
         isBooting,
         setIsBooting,
         capabilities,

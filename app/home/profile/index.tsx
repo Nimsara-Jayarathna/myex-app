@@ -17,25 +17,15 @@ export default function ProfileScreen() {
   const version = Constants.expoConfig?.version ?? '1.0.0';
   const { user, logout } = useAuth();
   const { colors } = useAppTheme();
-  const { offlineMode, capabilities, tryGoOnline } = useOffline();
+  const { offlineMode, capabilities, tryGoOnline, reconnectionState, reconnectionMessage, resetReconnectionState } = useOffline();
   const router = useRouter();
 
-  const [onlineCheckState, setOnlineCheckState] = useState<'idle' | 'checking' | 'success' | 'failed'>('idle');
   const [blockingState, setBlockingState] = useState<BlockingState>('idle');
   const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
-  useEffect(() => {
-    if (onlineCheckState === 'success' || onlineCheckState === 'failed') {
-      const timer = setTimeout(() => setOnlineCheckState('idle'), 1600);
-      return () => clearTimeout(timer);
-    }
-  }, [onlineCheckState]);
-
   const handleGoOnline = async () => {
-    if (!offlineMode || onlineCheckState === 'checking') return;
-    setOnlineCheckState('checking');
-    const success = await tryGoOnline();
-    setOnlineCheckState(success ? 'success' : 'failed');
+    if (!offlineMode || reconnectionState === 'loading') return;
+    await tryGoOnline();
   };
 
   const handleRestrictedAction = (action: () => void) => {
@@ -191,14 +181,14 @@ export default function ProfileScreen() {
           <ThemedText style={[styles.label, { color: colors.textMuted }]}>Connectivity</ThemedText>
           <Pressable
             onPress={handleGoOnline}
-            disabled={!offlineMode || onlineCheckState === 'checking'}
+            disabled={!offlineMode || reconnectionState === 'loading'}
             style={({ pressed }) => [
               styles.goOnlineButton,
               {
                 backgroundColor:
-                  onlineCheckState === 'success'
+                  reconnectionState === 'success'
                     ? '#22c55e'
-                    : onlineCheckState === 'failed'
+                    : reconnectionState === 'error'
                       ? '#f59e0b'
                       : offlineMode
                         ? colors.primaryAccent
@@ -207,7 +197,7 @@ export default function ProfileScreen() {
               },
             ]}
           >
-            {onlineCheckState === 'checking' ? (
+            {reconnectionState === 'loading' ? (
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
               <ThemedText
@@ -216,9 +206,9 @@ export default function ProfileScreen() {
                   { color: offlineMode ? '#ffffff' : colors.textMuted },
                 ]}
               >
-                {onlineCheckState === 'success'
+                {reconnectionState === 'success'
                   ? 'Online'
-                  : onlineCheckState === 'failed'
+                  : reconnectionState === 'error'
                     ? 'Still offline'
                     : offlineMode
                       ? 'Go online'
@@ -245,6 +235,7 @@ export default function ProfileScreen() {
           message={blockingMessage} 
           onClose={() => setBlockingState('idle')} // Usually logout error doesn't need dismissal but fallback
         />
+
     </HomeContent>
   );
 }

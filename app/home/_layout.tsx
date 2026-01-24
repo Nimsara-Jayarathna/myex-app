@@ -8,12 +8,13 @@ import { HomeShell } from '@/components/home/layout/HomeShell';
 import { useOffline } from '@/context/OfflineContext';
 import { useAuth } from '@/hooks/useAuth';
 import { runFullSync } from '@/utils/sync-service';
+import { BlockingModal } from '@/components/ui/BlockingModal';
 
 export default function HomeTabLayout() {
   const router = useRouter();
   const segments = useSegments();
   const { isAuthenticated, user } = useAuth();
-  const { offlineMode, capabilities, tryGoOnline } = useOffline();
+  const { offlineMode, capabilities, tryGoOnline, reconnectionState, reconnectionMessage, resetReconnectionState } = useOffline();
 
   useEffect(() => {
     if (!isAuthenticated && !offlineMode) {
@@ -65,46 +66,54 @@ export default function HomeTabLayout() {
   if (!isAuthenticated && !offlineMode) return null;
 
   return (
-    <HomeShell user={user ? { name: user.name ?? user.email, avatarUrl: undefined } : null}>
-      <Tabs.Screen name="today" options={{ title: 'Today' }} />
-      <Tabs.Screen 
-        name="all" 
-        options={{ title: 'All' }} 
-        listeners={{
-          tabPress: (e) => {
-            if (offlineMode) {
-              e.preventDefault();
-              Alert.alert(
-                'You are offline',
-                'You need to go online to view all transactions.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { 
-                    text: 'Go Online', 
-                    onPress: async () => {
-                      await tryGoOnline();
-                    } 
-                  }
-                ]
-              );
-            }
-          },
-        }} 
+    <>
+      <HomeShell user={user ? { name: user.name ?? user.email, avatarUrl: undefined } : null}>
+        <Tabs.Screen name="today" options={{ title: 'Today' }} />
+        <Tabs.Screen 
+          name="all" 
+          options={{ title: 'All' }} 
+          listeners={{
+            tabPress: (e) => {
+              if (offlineMode) {
+                e.preventDefault();
+                Alert.alert(
+                  'You are offline',
+                  'You need to go online to view all transactions.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { 
+                      text: 'Go Online', 
+                      onPress: async () => {
+                        await tryGoOnline();
+                      } 
+                    }
+                  ]
+                );
+              }
+            },
+          }} 
+        />
+        
+        {/* 
+           Register nested routes.
+           - profile: The profile folder (Stack). 
+            We hide the Tab header because the Stack (in profile/_layout.tsx) handles its own headers.
+         */}
+        <Tabs.Screen 
+          name="profile" 
+          options={{ 
+            title: 'Profile', 
+            headerShown: false,
+            href: '/home/profile',
+          }} 
+        /> 
+      </HomeShell>
+
+      <BlockingModal
+        state={reconnectionState}
+        message={reconnectionMessage}
+        onClose={resetReconnectionState}
       />
-      
-      {/* 
-         Register nested routes.
-         - profile: The profile folder (Stack). 
-           We hide the Tab header because the Stack (in profile/_layout.tsx) handles its own headers.
-       */}
-      <Tabs.Screen 
-        name="profile" 
-        options={{ 
-          title: 'Profile', 
-          headerShown: false,
-          href: '/home/profile',
-        }} 
-      /> 
-    </HomeShell>
+    </>
   );
 }
