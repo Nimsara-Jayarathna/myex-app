@@ -3,7 +3,6 @@ import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
-    ActivityIndicator,
     KeyboardAvoidingView,
     LayoutAnimation,
     Platform,
@@ -229,16 +228,12 @@ export default function ForgotPasswordScreen() {
                                     },
                                     pressed && styles.buttonPressed,
                                 ]}>
-                                {isLoading ? (
-                                    <ActivityIndicator color="#ffffff" />
-                                ) : (
                                     <View style={styles.btnContent}>
                                         <ThemedText style={styles.primaryButtonText}>
                                             {canResend ? 'Send Reset Link' : `Resend (${resendTimer}s)`}
                                         </ThemedText>
                                         <MaterialIcons name="arrow-forward" size={18} color="#fff" />
                                     </View>
-                                )}
                             </Pressable>
 
 

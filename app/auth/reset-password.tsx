@@ -3,7 +3,6 @@ import { useMutation } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
     LayoutAnimation,
@@ -271,14 +270,10 @@ export default function ResetPasswordScreen() {
                                     },
                                     pressed && styles.buttonPressed,
                                 ]}>
-                                {isLoading ? (
-                                    <ActivityIndicator color="#ffffff" />
-                                ) : (
                                     <View style={styles.btnContent}>
                                         <ThemedText style={styles.primaryButtonText}>Reset Password</ThemedText>
                                         <MaterialIcons name="check" size={18} color="#fff" />
                                     </View>
-                                )}
                             </Pressable>
 
                         </View>

@@ -3,7 +3,6 @@ import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
-  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   LayoutAnimation,
@@ -235,7 +234,7 @@ export default function LoginScreen() {
                 <Pressable
                   onPress={handleSubmit}
                   disabled={blockingState !== 'idle' || !isFormValid}
-                  style={({ pressed }) => [
+                style={({ pressed }) => [
                     styles.primaryButton,
                     { 
                       backgroundColor: accentColor, 
@@ -243,16 +242,11 @@ export default function LoginScreen() {
                       opacity: (blockingState !== 'idle' || !isFormValid) ? 0.5 : 1
                     },
                     pressed && styles.buttonPressed,
-                    (blockingState === 'loading') && styles.buttonLoading
                   ]}>
-                  {blockingState === 'loading' ? (
-                    <ActivityIndicator color="#ffffff" />
-                  ) : (
                     <View style={styles.btnContent}>
                       <ThemedText style={styles.primaryButtonText}>Log In</ThemedText>
                       <MaterialIcons name="arrow-forward" size={18} color="#fff" />
                     </View>
-                  )}
                 </Pressable>
   
               </View>

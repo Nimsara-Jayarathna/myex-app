@@ -3,7 +3,6 @@ import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   LayoutAnimation,
@@ -537,30 +536,26 @@ export default function RegisterScreen() {
                     (step === 'email' && !isEmailStepValid) ||
                     (step === 'details' && !isDetailsStepValid)
                   }
-                  style={({ pressed }) => [
-                    styles.primaryButton,
-                    { 
-                      backgroundColor: accentColor, 
-                      shadowColor: accentColor,
-                      opacity: (
-                        isLoading || 
-                        (step === 'email' && !isEmailStepValid) ||
-                        (step === 'details' && !isDetailsStepValid)
-                      ) ? 0.5 : 1
-                    },
-                    pressed && styles.buttonPressed,
-                  ]}>
-                  {isLoading ? (
-                    <ActivityIndicator color="#ffffff" />
-                  ) : (
-                    <View style={styles.btnContent}>
-                      <ThemedText style={styles.primaryButtonText}>
-                        {step === 'details' ? 'Complete Sign Up' : 'Continue'}
-                      </ThemedText>
-                      <MaterialIcons name="arrow-forward" size={18} color="#fff" />
-                    </View>
-                  )}
-                </Pressable>
+                   style={({ pressed }) => [
+                     styles.primaryButton,
+                     { 
+                       backgroundColor: accentColor, 
+                       shadowColor: accentColor,
+                       opacity: (
+                         isLoading || 
+                         (step === 'email' && !isEmailStepValid) ||
+                         (step === 'details' && !isDetailsStepValid)
+                       ) ? 0.5 : 1
+                     },
+                     pressed && styles.buttonPressed,
+                   ]}>
+                     <View style={styles.btnContent}>
+                       <ThemedText style={styles.primaryButtonText}>
+                         {step === 'details' ? 'Complete Sign Up' : 'Continue'}
+                       </ThemedText>
+                       <MaterialIcons name="arrow-forward" size={18} color="#fff" />
+                     </View>
+                 </Pressable>
               )}
 
             </View>
