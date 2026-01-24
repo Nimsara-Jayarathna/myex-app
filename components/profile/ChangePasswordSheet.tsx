@@ -2,8 +2,6 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMutation } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -16,6 +14,7 @@ import {
 import { changePassword } from '@/api/auth';
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 
 interface ChangePasswordSheetProps {
     visible: boolean;
@@ -29,18 +28,42 @@ export function ChangePasswordSheet({ visible, onClose }: ChangePasswordSheetPro
     const [newPassword, setNewPassword] = useState('');
     const [confirmNewPassword, setConfirmNewPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    
+    const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+    const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
+
+    // Validation
+    const passwordsMatch = newPassword === confirmNewPassword;
+    const isFormValid = 
+      currentPassword.trim().length > 0 &&
+      newPassword.trim().length >= 6 &&
+      confirmNewPassword.trim().length >= 6 &&
+      passwordsMatch;
 
     const mutation = useMutation({
         mutationFn: changePassword,
-        onSuccess: () => {
-            Alert.alert('Success', 'Password changed. Please check your email for confirmation.');
-            onClose();
-            setCurrentPassword('');
-            setNewPassword('');
-            setConfirmNewPassword('');
+        onMutate: () => {
+            setErrorMessage(null);
+            setBlockingState('loading');
+            setBlockingMessage('Changing password...');
         },
-        onError: () => {
-            setErrorMessage('Failed to change password. Check your current password.');
+        onSuccess: () => {
+            setBlockingState('success');
+            setBlockingMessage('Password changed!');
+            setTimeout(() => {
+                setBlockingState('idle');
+                setBlockingMessage(undefined);
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmNewPassword('');
+                onClose();
+            }, 1500);
+        },
+        onError: (error: any) => {
+            setBlockingState('error');
+            const msg = error?.response?.data?.error?.message 
+              || 'Failed to change password. Check your current password.';
+            setBlockingMessage(msg);
         },
     });
 
@@ -96,7 +119,17 @@ export function ChangePasswordSheet({ visible, onClose }: ChangePasswordSheetPro
                         />
                     </View>
                     <View style={styles.field}>
-                        <ThemedText style={[styles.label, { color: colors.textSubtle }]}>New Password</ThemedText>
+                        <View style={styles.labelRow}>
+                            <ThemedText style={[styles.label, { color: colors.textSubtle }]}>New Password</ThemedText>
+                            <ThemedText 
+                                style={[
+                                    styles.charCounter,
+                                    { color: newPassword.length >= 6 ? '#27ae60' : colors.textMuted }
+                                ]}
+                            >
+                                {newPassword.length}/6 characters
+                            </ThemedText>
+                        </View>
                         <TextInput
                             value={newPassword}
                             onChangeText={setNewPassword}
@@ -112,26 +145,42 @@ export function ChangePasswordSheet({ visible, onClose }: ChangePasswordSheetPro
                             secureTextEntry
                             style={[styles.input, { color: colors.textMain, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
                         />
+                        
+                        {/* Password match validation */}
+                        {confirmNewPassword.length > 0 && !passwordsMatch && (
+                            <View style={styles.validationFeedback}>
+                                <View style={styles.validationRow}>
+                                    <MaterialIcons name="error-outline" size={16} color="#ef4444" />
+                                    <ThemedText style={[styles.validationText, { color: '#ef4444' }]}>
+                                        Passwords don't match
+                                    </ThemedText>
+                                </View>
+                            </View>
+                        )}
                     </View>
 
                     <Pressable
                         onPress={handleSave}
-                        disabled={mutation.isPending}
+                        disabled={!isFormValid}
                         style={({ pressed }) => [
                             styles.saveBtn,
-                            { backgroundColor: colors.primaryAccent },
+                            { 
+                                backgroundColor: colors.primaryAccent,
+                                opacity: !isFormValid ? 0.5 : 1
+                            },
                             pressed && { opacity: 0.8 },
                         ]}
                     >
-                        {mutation.isPending ? (
-                            <ActivityIndicator color="#fff" />
-                        ) : (
-                            <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>Update Password</ThemedText>
-                        )}
+                        <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>Update Password</ThemedText>
                     </Pressable>
 
                 </View>
             </KeyboardAvoidingView>
+            <BlockingModal
+                state={blockingState}
+                message={blockingMessage}
+                onClose={() => setBlockingState('idle')}
+            />
         </Modal>
     );
 }
@@ -144,7 +193,12 @@ const styles = StyleSheet.create({
     title: { fontSize: 20, fontWeight: 'bold' },
     closeBtn: { padding: 4 },
     field: { marginBottom: 20 },
+    labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
     label: { fontSize: 12, fontWeight: '600', marginBottom: 8 },
+    charCounter: { fontSize: 11, fontWeight: '600' },
     input: { height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, fontSize: 16 },
+    validationFeedback: { marginTop: 6 },
+    validationRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    validationText: { fontSize: 12, fontWeight: '500' },
     saveBtn: { height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
 });
