@@ -181,40 +181,23 @@ export default function ProfileScreen() {
           <ThemedText style={[styles.label, { color: colors.textMuted }]}>Connectivity</ThemedText>
           <Pressable
             onPress={handleGoOnline}
-            disabled={!offlineMode || reconnectionState === 'loading'}
+            disabled={!offlineMode}
             style={({ pressed }) => [
               styles.goOnlineButton,
               {
-                backgroundColor:
-                  reconnectionState === 'success'
-                    ? '#22c55e'
-                    : reconnectionState === 'error'
-                      ? '#f59e0b'
-                      : offlineMode
-                        ? colors.primaryAccent
-                        : colors.surface2,
+                backgroundColor: offlineMode ? colors.primaryAccent : colors.surface2,
                 opacity: pressed ? 0.85 : 1,
               },
             ]}
           >
-            {reconnectionState === 'loading' ? (
-              <ActivityIndicator size="small" color="#ffffff" />
-            ) : (
-              <ThemedText
-                style={[
-                  styles.goOnlineText,
-                  { color: offlineMode ? '#ffffff' : colors.textMuted },
-                ]}
-              >
-                {reconnectionState === 'success'
-                  ? 'Online'
-                  : reconnectionState === 'error'
-                    ? 'Still offline'
-                    : offlineMode
-                      ? 'Go online'
-                      : 'Online'}
-              </ThemedText>
-            )}
+            <ThemedText
+              style={[
+                styles.goOnlineText,
+                { color: offlineMode ? '#ffffff' : colors.textMuted },
+              ]}
+            >
+              {offlineMode ? 'Go online' : 'Online'}
+            </ThemedText>
           </Pressable>
         </View>
 
