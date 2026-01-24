@@ -77,7 +77,7 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [filteredCategories, setFilteredCategories] = useState<CategoryOption[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  // const [isLoadingCategories, setIsLoadingCategories] = useState(false); // Removed in favor of BlockingModal
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [note, setNote] = useState('');
@@ -113,10 +113,12 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
   useEffect(() => {
     if (!visible || step !== 2) return;
     const loadCategories = async () => {
+      setBlockingState('loading');
+      setBlockingMessage('Loading categories...');
+
       // Offline: load categories from local DB.
       if (offlineMode) {
         try {
-          setIsLoadingCategories(true);
           await initDb();
           const local = await getLocalCategories();
           const mapped = local.map((item: any) => ({
@@ -126,16 +128,15 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
             isDefault: item.isDefault === 1,
           }));
           setCategories(mapped.length ? mapped : OFFLINE_CATEGORIES);
+          setBlockingState('idle'); // Immediate dismiss on success
         } catch {
           setCategories(OFFLINE_CATEGORIES);
-        } finally {
-          setIsLoadingCategories(false);
+          setBlockingState('idle'); // Fallback to offline categories is not an "error" for the user
         }
         return;
       }
 
       try {
-        setIsLoadingCategories(true);
         const result = await getCategories();
         const mapped = (result.categories ?? []).map((item: Category) => ({
           id: item.id ?? item._id ?? item.name,
@@ -144,10 +145,10 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
           isDefault: item.isDefault,
         }));
         setCategories(mapped);
-      } catch {
-        Alert.alert('Error', 'Unable to load categories');
-      } finally {
-        setIsLoadingCategories(false);
+        setBlockingState('idle'); // Immediate dismiss on success
+      } catch (error: any) {
+        setBlockingState('error');
+        setBlockingMessage('Unable to load categories');
       }
     };
     void loadCategories();
@@ -416,8 +417,6 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
                 <View style={styles.section}>
                   <ThemedText style={styles.label}>Category</ThemedText>
                   <View style={styles.categoryGrid}>
-                    {isLoadingCategories ? <ActivityIndicator size="small" color={colors.primaryAccent} /> :
-                      <>
                         {(isExpanded ? filteredCategories : filteredCategories.slice(0, 10)).map(cat => (
                           <Pressable
                             key={cat.id}
@@ -446,8 +445,6 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
                             <MaterialIcons name={isExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"} size={16} color={colors.textMuted} />
                           </Pressable>
                         )}
-                      </>
-                    }
                   </View>
                 </View>
 
