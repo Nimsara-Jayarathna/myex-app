@@ -20,12 +20,11 @@ const queryClient = new QueryClient();
 
 export default function RootLayout() {
   useEffect(() => {
-    // Hide native splash once React mounts
-    SplashScreen.hideAsync();
-
-    // Load stored tokens
-    import('@/context/auth-store').then(({ useAuthStore }) => {
-      void useAuthStore.getState().loadCookies();
+    // Load stored cookies FIRST, before hiding splash
+    import('@/context/auth-store').then(async ({ useAuthStore }) => {
+      await useAuthStore.getState().loadCookies();
+      // Only hide splash after cookies are loaded
+      SplashScreen.hideAsync();
     });
   }, []);
 

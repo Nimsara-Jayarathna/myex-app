@@ -12,7 +12,7 @@ import Animated, {
   withTiming
 } from 'react-native-reanimated';
 
-import { getSession, refreshSession } from '@/api/auth';
+import { getSession } from '@/api/auth';
 import { apiClient } from '@/api/client';
 import { HomeBackground } from '@/components/home/HomeBackground';
 import { ThemedText } from '@/components/themed-text';
@@ -94,15 +94,9 @@ export default function IndexScreen() {
           return { status: 'unauth' as const };
         }
 
-        let authData = session;
-        try {
-          const refreshed = await refreshSession();
-          if (refreshed?.user) authData = refreshed;
-        } catch {
-          // Ignore refresh error; session is still valid.
-        }
-
-        return { status: 'ok' as const, authData };
+        // Don't manually refresh here - let the API client handle it automatically
+        // when tokens expire via the response interceptor
+        return { status: 'ok' as const, authData: session };
       } catch (e) {
         if (isNetworkOrTimeoutError(e)) {
           return { status: 'network' as const };
