@@ -92,7 +92,10 @@ apiClient.interceptors.response.use(
         const { user } = response.data as AuthResponse;
         // Extract only the 'name=value' part from each Set-Cookie string
         const cleanCookies = setCookie.map(c => c.split(';')[0]);
-        useAuthStore.getState().setAuth({ user } as AuthResponse, cleanCookies);
+        // ONLY update cookies here. Do NOT set global auth state (isAuthenticated = true)
+        // or trigger user updates yet. The UI component (Login/Register) will handle
+        // the state transition after animations complete.
+        useAuthStore.getState().setCookies(cleanCookies);
         logDebug('Captured Cookies', { count: cleanCookies.length, cookies: cleanCookies });
       }
     }

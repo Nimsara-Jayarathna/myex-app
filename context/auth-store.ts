@@ -18,6 +18,7 @@ interface AuthState {
   markSessionChecked: () => void;
   logout: () => void;
   updateUser: (user: Partial<UserProfile>) => void;
+  setCookies: (cookies: string[]) => void;
   loadCookies: () => Promise<void>;
 }
 
@@ -59,6 +60,13 @@ export const useAuthStore = create<AuthState>(set => ({
       ...state,
       user: state.user ? { ...state.user, ...updates } : null,
     })),
+  setCookies: (cookies: string[]) =>
+    set(state => {
+      if (cookies && cookies.length > 0) {
+        void SecureStore.setItemAsync(COOKIE_CACHE_KEY, JSON.stringify(cookies));
+      }
+      return { ...state, cookies };
+    }),
   markSessionChecked: () =>
     set(state => ({
       ...state,

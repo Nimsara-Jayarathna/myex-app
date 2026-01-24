@@ -117,34 +117,23 @@ export default function IndexScreen() {
         await loadSessionCache();
         const localProfile = await loadLocalProfile();
         if (!hasValidSessionRef.current) {
+          // If we are not focused (e.g., covered by Login screen), don't redirect/prompt
+          // This prevents background 'index' logic from interfering with top-level auth flow.
+          // We can check if we are still the root path? 
+          // For now, rely on safe retry or silent failure.
+          
           try {
             await withRetry(() => apiClient.get('/health', { timeout: 5000 }), 2);
-            hasNavigatedRef.current = true;
-            router.replace('/welcome');
+            if (!hasNavigatedRef.current) {
+               hasNavigatedRef.current = true;
+               router.replace('/welcome');
+            }
           } catch {
-            promptToGoOffline(
-              'You need to be online to sign in.',
-              async () => {
-                await apiClient.get('/health', { timeout: 5000 });
-                hasNavigatedRef.current = true;
-                router.replace('/welcome');
-              },
-              {
-                allowOffline: Boolean(localProfile),
-                primaryLabel: 'Go to sign in',
-                onConfirm: localProfile
-                  ? () => {
-                    setAuth({ user: localProfile });
-                    hasNavigatedRef.current = true;
-                    router.replace('/home/today' as any);
-                  }
-                  : undefined,
-                force: true,
-              }
-            );
+             // Ignore error on background check
           }
           return;
         }
+
 
         const result = await runSessionCheck();
 

@@ -207,8 +207,7 @@ export default function RegisterScreen() {
       setBlockingState('success');
       setBlockingMessage('Welcome to Blipzo!');
       setTimeout(() => {
-        setBlockingState('idle');
-        setBlockingMessage(undefined);
+        // Do NOT reset blocking state here.
         setAuth(data);
         router.replace('/home');
       }, 2000);

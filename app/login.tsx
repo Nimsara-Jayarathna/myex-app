@@ -61,8 +61,7 @@ export default function LoginScreen() {
       setBlockingState('success');
       setBlockingMessage('Welcome back!');
       setTimeout(() => {
-        setBlockingState('idle');
-        setBlockingMessage(undefined);
+        // Do NOT reset blocking state here. Let navigation flow naturally.
         setAuth(data);
         router.replace('/home');
       }, 1500);
@@ -110,17 +109,7 @@ export default function LoginScreen() {
     }
     setErrorMessage(null);
     logDebug('Login request started', { email });
-    loginMutation.mutate(
-      { email, password },
-      {
-        onSuccess: data => {
-          logDebug('Login successful', { userId: data.user.id });
-        },
-        onError: error => {
-          logError('Login failed', error);
-        },
-      }
-    );
+    loginMutation.mutate({ email, password });
   };
 
   return (
@@ -245,18 +234,18 @@ export default function LoginScreen() {
                 {/* Submit Button */}
                 <Pressable
                   onPress={handleSubmit}
-                  disabled={isLoading || !isFormValid}
+                  disabled={blockingState !== 'idle' || !isFormValid}
                   style={({ pressed }) => [
                     styles.primaryButton,
                     { 
                       backgroundColor: accentColor, 
                       shadowColor: accentColor,
-                      opacity: (isLoading || !isFormValid) ? 0.5 : 1
+                      opacity: (blockingState !== 'idle' || !isFormValid) ? 0.5 : 1
                     },
                     pressed && styles.buttonPressed,
-                    isLoading && styles.buttonLoading
+                    (blockingState === 'loading') && styles.buttonLoading
                   ]}>
-                  {isLoading ? (
+                  {blockingState === 'loading' ? (
                     <ActivityIndicator color="#ffffff" />
                   ) : (
                     <View style={styles.btnContent}>
