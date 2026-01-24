@@ -87,14 +87,51 @@ apiClient.interceptors.response.use(
     // Capture cookies from auth responses
     const url = response.config.url || '';
     if (AUTH_ENDPOINTS.some(path => url.includes(path))) {
-      const setCookie = response.headers['set-cookie'] as string[] | undefined;
-      if (setCookie && Array.isArray(setCookie) && setCookie.length > 0) {
-        const { user } = response.data as AuthResponse;
+      let setCookieHeaders: string[] = [];
+
+      // CRITICAL FIX: React Native/Axios doesn't preserve multiple headers with same name
+      // We must access the raw XMLHttpRequest to get ALL Set-Cookie headers
+      // @ts-ignore - React Native XMLHttpRequest exposes getAllResponseHeaders()
+      if (response.request?.getAllResponseHeaders) {
+        try {
+          const rawHeaders = response.request.getAllResponseHeaders();
+
+          // Extract ALL set-cookie headers (case-insensitive)
+          const cookieMatches = rawHeaders.match(/set-cookie:\s*([^\r\n]+)/gi);
+          if (cookieMatches && cookieMatches.length > 0) {
+            // Each match might contain MULTIPLE cookies separated by commas
+            // Example: "set-cookie: accessToken=...; SameSite=Lax, refreshToken=...; SameSite=Lax"
+            cookieMatches.forEach((match: string) => {
+              const headerValue = match.replace(/set-cookie:\s*/i, '');
+
+              // Split by comma BUT only if followed by a cookie name (e.g., "accessToken=", "refreshToken=")
+              // Regex: split on ", " only when followed by word characters and "="
+              const cookieParts = headerValue.split(/,\s*(?=[a-zA-Z_][a-zA-Z0-9_]*=)/);
+
+              setCookieHeaders.push(...cookieParts);
+            });
+          }
+        } catch (e) {
+          // Silently fall back to parsed headers
+        }
+      }
+
+      // Fallback: Try parsed headers (might only have 1 cookie due to overwrite issue)
+      if (setCookieHeaders.length === 0) {
+        const parsed = response.headers['set-cookie'];
+        if (Array.isArray(parsed)) {
+          setCookieHeaders = parsed;
+        } else if (typeof parsed === 'string') {
+          setCookieHeaders = [parsed];
+        }
+
+      }
+
+
+      if (setCookieHeaders.length > 0) {
         // Extract only the 'name=value' part from each Set-Cookie string
-        const cleanCookies = setCookie.map(c => c.split(';')[0]);
-        // ONLY update cookies here. Do NOT set global auth state (isAuthenticated = true)
-        // or trigger user updates yet. The UI component (Login/Register) will handle
-        // the state transition after animations complete.
+        const cleanCookies = setCookieHeaders.map(c => c.split(';')[0]);
+
         useAuthStore.getState().setCookies(cleanCookies);
         logDebug('Captured Cookies', { count: cleanCookies.length, cookies: cleanCookies });
       }

@@ -93,7 +93,6 @@ export const useAuthStore = create<AuthState>(set => ({
       }
     } catch (error) {
       console.error('Failed to load cookies', error);
-      // Fallback or ignore
     }
   },
 }));

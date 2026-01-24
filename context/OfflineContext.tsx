@@ -143,20 +143,22 @@ export const OfflineProvider: React.FC<React.PropsWithChildren> = ({ children })
     try {
       await apiClient.get('/health', { timeout: 5000 });
       const refreshed = await refreshSession();
+      
       if (refreshed?.user) {
         setAuth(refreshed);
       }
+      
       suppressPromptUntilRef.current = Date.now() + 5000;
       setNetworkConnected(true);
       setManualOffline(false);
       return true;
-    } catch {
+    } catch (error: any) {
       openPrompt('Still offline. Please check your connection.', async () => {
         await apiClient.get('/health', { timeout: 5000 });
       });
       return false;
     }
-  }, [openPrompt, setAuth]);
+  }, [openPrompt, setAuth, networkConnected, manualOffline, offlineMode]);
 
   useEffect(() => {
     if (lastOfflineRef.current && !manualOffline) {
