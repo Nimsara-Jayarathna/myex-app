@@ -27,23 +27,23 @@ export const useAuthStore = create<AuthState>(set => ({
   isAuthenticated: false,
   isSessionChecked: false,
   hasValidSession: false,
-  setAuth: ({ user }: AuthResponse, cookies?: string[]) =>
-    set(() => {
+  setAuth: ({ user }: AuthResponse, incomingCookies?: string[]) =>
+    set((state) => {
       void AsyncStorage.setItem(SESSION_CACHE_KEY, 'true');
+
+      // Use incoming cookies if valid, otherwise keep existing ones
+      const cookies = (incomingCookies && incomingCookies.length > 0)
+        ? incomingCookies
+        : state.cookies;
+
       if (cookies && cookies.length > 0) {
         // Store securely
         void SecureStore.setItemAsync(COOKIE_CACHE_KEY, JSON.stringify(cookies));
-        return {
-          user,
-          cookies,
-          isAuthenticated: true,
-          isSessionChecked: true,
-          hasValidSession: true,
-        };
       }
+
       return {
         user,
-        cookies: null,
+        cookies,
         isAuthenticated: true,
         isSessionChecked: true,
         hasValidSession: true,
