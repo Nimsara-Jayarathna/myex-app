@@ -87,7 +87,7 @@ export const BlockingModal = ({ state, message, onClose }: BlockingModalProps) =
 
             <Animated.View 
                 entering={ZoomIn.springify()} 
-                exiting={ZoomOut}
+                // exiting={ZoomOut} // Removed to prevent "flash" on dismissal
                 style={[
                     styles.content,
                     { 
