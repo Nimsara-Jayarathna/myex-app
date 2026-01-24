@@ -243,13 +243,27 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
   if (!visible) return null;
 
   const handleAmountChange = (value: string) => {
-    const sanitized = value.replace(/[^0-9.]/g, '');
-    const parts = sanitized.split('.');
-    const next =
-      parts.length <= 2 
-        ? `${parts[0]}${parts.length > 1 ? '.' + parts[1].slice(0, 2) : ''}`
-        : `${parts[0]}.${parts[1].slice(0, 2)}`;
-    setAmount(next);
+    // Remove any non-numeric characters except decimal point
+    let cleaned = value.replace(/[^0-9.]/g, '');
+    
+    // Handle multiple decimal points - only keep the first one
+    const parts = cleaned.split('.');
+    if (parts.length > 2) {
+      cleaned = parts[0] + '.' + parts.slice(1).join('');
+    }
+    
+    // Limit to 2 decimal places - prevent typing more
+    if (parts.length === 2 && parts[1].length > 2) {
+      // Don't update if user tries to type more than 2 decimals
+      return;
+    }
+    
+    // Prevent leading zeros (except for "0." cases)
+    if (cleaned.length > 1 && cleaned[0] === '0' && cleaned[1] !== '.') {
+      cleaned = cleaned.substring(1);
+    }
+    
+    setAmount(cleaned);
   };
 
   return (
