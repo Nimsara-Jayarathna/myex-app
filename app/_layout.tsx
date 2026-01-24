@@ -1,17 +1,17 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import * as SplashScreen from 'expo-splash-screen';
-import React, { useEffect, useMemo } from 'react';
-import 'react-native-reanimated';
+import { OfflinePromptHost } from '@/components/offline/OfflinePromptHost';
+import { SyncOverlay } from '@/components/sync/SyncOverlay';
+import { AppToastHost } from '@/components/toast/AppToastHost';
 import { AuthProvider } from '@/context/AuthContext'; // Ensure this path is correct
 import { OfflineProvider } from '@/context/OfflineContext';
 import { AppThemeProvider, useAppTheme } from '@/context/ThemeContext';
 import { useHeartbeat } from '@/hooks/useHeartbeat';
-import { OfflinePromptHost } from '@/components/offline/OfflinePromptHost';
-import { SyncOverlay } from '@/components/sync/SyncOverlay';
-import { AppToastHost } from '@/components/toast/AppToastHost';
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import React, { useEffect, useMemo } from 'react';
+import 'react-native-reanimated';
 
 // Prevent native splash from hiding immediately
 SplashScreen.preventAutoHideAsync();
@@ -20,8 +20,10 @@ const queryClient = new QueryClient();
 
 export default function RootLayout() {
   useEffect(() => {
-    // Hide native splash once React mounts (our custom splash will take over)
-    SplashScreen.hideAsync();
+    // Load stored tokens
+    import('@/context/auth-store').then(({ useAuthStore }) => {
+      void useAuthStore.getState().loadCookies();
+    });
   }, []);
 
   return (

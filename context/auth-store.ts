@@ -1,32 +1,47 @@
-import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { create } from 'zustand';
 
 import type { AuthResponse, UserProfile } from '@/types';
 
 const SESSION_CACHE_KEY = 'has_valid_session';
+const COOKIE_CACHE_KEY = 'auth_cookies';
 
 interface AuthState {
   user: UserProfile | null;
+  cookies: string[] | null;
   isAuthenticated: boolean;
   isSessionChecked: boolean;
   hasValidSession: boolean;
-  setAuth: (payload: AuthResponse) => void;
+  setAuth: (payload: AuthResponse, cookies?: string[]) => void;
   setHasValidSession: (value: boolean) => void;
   markSessionChecked: () => void;
   logout: () => void;
   updateUser: (user: Partial<UserProfile>) => void;
+  loadCookies: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>(set => ({
   user: null,
+  cookies: null,
   isAuthenticated: false,
   isSessionChecked: false,
   hasValidSession: false,
-  setAuth: ({ user }: AuthResponse) =>
+  setAuth: ({ user }: AuthResponse, cookies?: string[]) =>
     set(() => {
       void AsyncStorage.setItem(SESSION_CACHE_KEY, 'true');
+      if (cookies && cookies.length > 0) {
+        void AsyncStorage.setItem(COOKIE_CACHE_KEY, JSON.stringify(cookies));
+        return {
+          user,
+          cookies,
+          isAuthenticated: true,
+          isSessionChecked: true,
+          hasValidSession: true,
+        };
+      }
       return {
         user,
+        cookies: null, // Ensure cookies are null if not provided
         isAuthenticated: true,
         isSessionChecked: true,
         hasValidSession: true,
@@ -50,11 +65,24 @@ export const useAuthStore = create<AuthState>(set => ({
   logout: () =>
     set(() => {
       void AsyncStorage.setItem(SESSION_CACHE_KEY, 'false');
+      void AsyncStorage.removeItem(COOKIE_CACHE_KEY);
       return {
         user: null,
+        cookies: null,
         isAuthenticated: false,
         isSessionChecked: true,
         hasValidSession: false,
       };
     }),
+  loadCookies: async () => {
+    try {
+      const stored = await AsyncStorage.getItem(COOKIE_CACHE_KEY);
+      if (stored) {
+        const cookies = JSON.parse(stored) as string[];
+        set(state => ({ ...state, cookies }));
+      }
+    } catch (error) {
+      // Ignore error
+    }
+  },
 }));
