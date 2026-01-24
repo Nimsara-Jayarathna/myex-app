@@ -129,7 +129,15 @@ export default function IndexScreen() {
                router.replace('/welcome');
             }
           } catch {
-             // Ignore error on background check
+             promptToGoOffline(
+              'You need to be online to sign in.',
+              async () => {
+                await apiClient.get('/health', { timeout: 5000 });
+                hasNavigatedRef.current = true;
+                router.replace('/welcome');
+              },
+              { allowOffline: false, primaryLabel: 'Retry', force: true }
+            );
           }
           return;
         }
@@ -177,16 +185,11 @@ export default function IndexScreen() {
               }
               if (retryResult.status === 'unauth') {
                 await AsyncStorage.setItem(SESSION_CACHE_KEY, 'false');
-                promptToGoOffline(
-                  'You need to be online to sign in.',
-                  async () => {
-                    await apiClient.get('/health', { timeout: 5000 });
-                    hasNavigatedRef.current = true;
-                    router.replace('/welcome');
-                  },
-                  { allowOffline: false, primaryLabel: 'Go to sign in' }
-                );
-                throw new Error('AUTH_INVALID');
+                // Don't throw - explicitly navigate to welcome so we don't get stuck in the loop
+                // "Connected" success message will show briefly, then we route.
+                hasNavigatedRef.current = true;
+                router.replace('/welcome');
+                return;
               }
               throw new Error('NETWORK');
             },

@@ -38,6 +38,9 @@ type OfflineContextValue = {
   reconnectionState: BlockingState;
   reconnectionMessage: string;
   resetReconnectionState: () => void;
+  promptBlockingState: BlockingState;
+  promptBlockingMessage: string;
+  resetPromptBlockingState: () => void;
   isBooting: boolean;
   setIsBooting: (next: boolean) => void;
   capabilities: Capabilities;
@@ -63,6 +66,8 @@ export const OfflineProvider: React.FC<React.PropsWithChildren> = ({ children })
   const [isBooting, setIsBooting] = useState(true);
   const [reconnectionState, setReconnectionState] = useState<BlockingState>('idle');
   const [reconnectionMessage, setReconnectionMessage] = useState<string>('');
+  const [promptBlockingState, setPromptBlockingState] = useState<BlockingState>('idle');
+  const [promptBlockingMessage, setPromptBlockingMessage] = useState<string>('');
   const lastOfflineRef = useRef(manualOffline);
   const suppressPromptUntilRef = useRef(0);
 
@@ -124,17 +129,31 @@ export const OfflineProvider: React.FC<React.PropsWithChildren> = ({ children })
     }
 
     setIsPromptRetrying(true);
+    setPromptBlockingState('loading');
+    setPromptBlockingMessage('Checking connection...');
+    
     const minWait = new Promise(resolve => setTimeout(resolve, 700));
     try {
       await Promise.all([promptState.onRetry(), minWait]);
       setManualOffline(false);
-      setPromptState(prev => ({ ...prev, visible: false }));
+      setPromptBlockingState('success');
+      setPromptBlockingMessage('Connected!');
+      
+      // Auto-dismiss after success animation
+      setTimeout(() => {
+        setPromptBlockingState('idle');
+        setPromptBlockingMessage('');
+        setPromptState(prev => ({ ...prev, visible: false }));
+      }, 1500);
     } catch (error) {
       await minWait;
       const message =
         error instanceof Error && error.message === 'AUTH_INVALID'
           ? 'You need to be online to sign in.'
           : 'Still offline. Please check your connection.';
+      
+      setPromptBlockingState('error');
+      setPromptBlockingMessage(message);
       setPromptState(prev => ({
         ...prev,
         reason: message,
@@ -298,6 +317,12 @@ export const OfflineProvider: React.FC<React.PropsWithChildren> = ({ children })
         resetReconnectionState: () => {
           setReconnectionState('idle');
           setReconnectionMessage('');
+        },
+        promptBlockingState,
+        promptBlockingMessage,
+        resetPromptBlockingState: () => {
+          setPromptBlockingState('idle');
+          setPromptBlockingMessage('');
         },
         isBooting,
         setIsBooting,
