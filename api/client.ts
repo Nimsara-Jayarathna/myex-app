@@ -164,6 +164,7 @@ apiClient.interceptors.response.use(
         await refreshSession();
         return apiClient(originalRequest);
       } catch (refreshError) {
+        // Only logout if refresh itself fails (not a network error)
         if (!isNetworkOrTimeoutError(refreshError)) {
           useAuthStore.getState().logout();
           void clearDb();
@@ -172,10 +173,8 @@ apiClient.interceptors.response.use(
       }
     }
 
-    if (status === 401) {
-      useAuthStore.getState().logout();
-      void clearDb();
-    }
+    // Don't logout here - the above logic already handled auth errors
+    // If we reach here with a 401, it means refresh was skipped or not applicable
 
     return Promise.reject(error);
   }
