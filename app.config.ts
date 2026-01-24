@@ -1,4 +1,4 @@
-import { ExpoConfig, ConfigContext } from 'expo/config';
+import { ConfigContext, ExpoConfig } from 'expo/config';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
     ...config,
@@ -38,6 +38,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
                 backgroundColor: "#F0F7FF"
             }
         ],
-        "expo-sqlite"
+        "expo-sqlite",
+        "expo-secure-store"
     ]
 });

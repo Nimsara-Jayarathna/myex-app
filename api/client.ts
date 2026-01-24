@@ -80,13 +80,13 @@ const refreshSession = async () => {
   return refreshRequest;
 };
 
-const IGNORED_PATHS = ['/auth/login', '/auth/register/complete', '/auth/refresh'];
+const AUTH_ENDPOINTS = ['/auth/login', '/auth/register/complete', '/auth/refresh'];
 
 apiClient.interceptors.response.use(
   response => {
     // Capture cookies from auth responses
     const url = response.config.url || '';
-    if (IGNORED_PATHS.some(path => url.includes(path))) {
+    if (AUTH_ENDPOINTS.some(path => url.includes(path))) {
       const setCookie = response.headers['set-cookie'] as string[] | undefined;
       if (setCookie && Array.isArray(setCookie) && setCookie.length > 0) {
         const { user } = response.data as AuthResponse;

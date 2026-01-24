@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 
 import type { AuthResponse, UserProfile } from '@/types';
@@ -30,7 +31,8 @@ export const useAuthStore = create<AuthState>(set => ({
     set(() => {
       void AsyncStorage.setItem(SESSION_CACHE_KEY, 'true');
       if (cookies && cookies.length > 0) {
-        void AsyncStorage.setItem(COOKIE_CACHE_KEY, JSON.stringify(cookies));
+        // Store securely
+        void SecureStore.setItemAsync(COOKIE_CACHE_KEY, JSON.stringify(cookies));
         return {
           user,
           cookies,
@@ -41,7 +43,7 @@ export const useAuthStore = create<AuthState>(set => ({
       }
       return {
         user,
-        cookies: null, // Ensure cookies are null if not provided
+        cookies: null,
         isAuthenticated: true,
         isSessionChecked: true,
         hasValidSession: true,
@@ -65,7 +67,7 @@ export const useAuthStore = create<AuthState>(set => ({
   logout: () =>
     set(() => {
       void AsyncStorage.setItem(SESSION_CACHE_KEY, 'false');
-      void AsyncStorage.removeItem(COOKIE_CACHE_KEY);
+      void SecureStore.deleteItemAsync(COOKIE_CACHE_KEY);
       return {
         user: null,
         cookies: null,
@@ -76,13 +78,14 @@ export const useAuthStore = create<AuthState>(set => ({
     }),
   loadCookies: async () => {
     try {
-      const stored = await AsyncStorage.getItem(COOKIE_CACHE_KEY);
+      const stored = await SecureStore.getItemAsync(COOKIE_CACHE_KEY);
       if (stored) {
         const cookies = JSON.parse(stored) as string[];
         set(state => ({ ...state, cookies }));
       }
     } catch (error) {
-      // Ignore error
+      console.error('Failed to load cookies', error);
+      // Fallback or ignore
     }
   },
 }));
