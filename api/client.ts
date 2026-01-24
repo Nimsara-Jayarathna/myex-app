@@ -90,8 +90,10 @@ apiClient.interceptors.response.use(
       const setCookie = response.headers['set-cookie'] as string[] | undefined;
       if (setCookie && Array.isArray(setCookie) && setCookie.length > 0) {
         const { user } = response.data as AuthResponse;
-        useAuthStore.getState().setAuth({ user } as AuthResponse, setCookie);
-        logDebug('Captured Cookies', { count: setCookie.length });
+        // Extract only the 'name=value' part from each Set-Cookie string
+        const cleanCookies = setCookie.map(c => c.split(';')[0]);
+        useAuthStore.getState().setAuth({ user } as AuthResponse, cleanCookies);
+        logDebug('Captured Cookies', { count: cleanCookies.length, cookies: cleanCookies });
       }
     }
 
