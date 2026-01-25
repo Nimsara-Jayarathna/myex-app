@@ -1,22 +1,22 @@
-import React, { useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useAppTheme } from '@/context/ThemeContext';
-import { useOffline } from '@/context/OfflineContext';
 import {
   HOME_TAB_BAR_HEIGHT,
   HOME_TAB_BAR_MARGIN,
 } from '@/components/home/layout/spacing';
+import { useOffline } from '@/context/OfflineContext';
+import { useAppTheme } from '@/context/ThemeContext';
 
 type HomeTabBarProps = {
   state: any;
@@ -63,7 +63,7 @@ export function HomeTabBar({ state, descriptors, navigation, onAddPress }: HomeT
         easing: Easing.out(Easing.cubic),
       });
     }
-  }, [slotWidth, state.index, state.routes, translateX]);
+  }, [slotWidth, state.index, state.routes, translateX, activeRouteName]);
 
   const pillStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value + 6 }],
@@ -238,8 +238,8 @@ export function HomeTabBar({ state, descriptors, navigation, onAddPress }: HomeT
           const iconColor = isFocused ? colors.primaryAccent : colors.textMuted;
           const labelColor = isFocused ? colors.primaryAccent : colors.textMuted;
           // Apply visual disabled style if needed, but keep interaction enabled for the alert
-          const disabledTint = colors.textSubtle ?? colors.textMuted; 
-          const visualDisabled = isAllDisabled; 
+          const disabledTint = colors.textSubtle ?? colors.textMuted;
+          const visualDisabled = isAllDisabled;
 
           return (
             <Pressable

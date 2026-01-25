@@ -3,10 +3,8 @@ import { useMutation } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
-    LayoutAnimation,
     Platform,
     Pressable,
     ScrollView,
@@ -19,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { resetPassword } from '@/api/auth';
 import { HomeBackground } from '@/components/home/HomeBackground';
 import { ThemedText } from '@/components/themed-text';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import { useAppTheme } from '@/context/ThemeContext';
 
 export default function ResetPasswordScreen() {
@@ -35,19 +34,59 @@ export default function ResetPasswordScreen() {
         if (params.token) setToken(params.token);
     }, [params.token]);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+    const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
+
+    // Validation states
+    const [confirmTouched, setConfirmTouched] = useState(false);
+    const [showConfirmValidation, setShowConfirmValidation] = useState(false);
 
     const mutation = useMutation({
         mutationFn: resetPassword,
-        onSuccess: () => {
-            Alert.alert('Success', 'Password reset successfully. Please log in.', [
-                { text: 'OK', onPress: () => router.replace('/login') }
-            ]);
+        onMutate: () => {
+            setErrorMessage(null);
+            setBlockingState('loading');
+            setBlockingMessage('Resetting password...');
         },
-        onError: () => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setErrorMessage('Invalid token or password. Please try again.');
+        onSuccess: () => {
+            setBlockingState('success');
+            setBlockingMessage('Password reset!');
+            setTimeout(() => {
+                setBlockingState('idle');
+                setBlockingMessage(undefined);
+                Alert.alert('Success', 'Password reset successfully. Please log in.', [
+                    { text: 'OK', onPress: () => router.replace('/login') }
+                ]);
+            }, 1500);
+        },
+        onError: (error: any) => {
+            setBlockingState('error');
+            const msg = error?.response?.data?.error?.message
+                || error?.response?.data?.message
+                || 'Invalid token or password.';
+            setBlockingMessage(msg);
+            // Fallback
         },
     });
+
+    // Confirm password validation with debounce
+    useEffect(() => {
+        if (!confirmTouched || confirmPassword.trim() === '') {
+            setShowConfirmValidation(false);
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setShowConfirmValidation(true);
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [confirmPassword, confirmTouched]);
+
+    // Validation
+    const isPasswordValid = password.trim().length >= 6;
+    const doPasswordsMatch = password === confirmPassword && confirmPassword.length > 0;
+    const isFormValid = token.trim().length > 0 && isPasswordValid && doPasswordsMatch;
 
     const isLoading = mutation.isPending;
 
@@ -100,7 +139,7 @@ export default function ResetPasswordScreen() {
                                     </ThemedText>
                                 </View>
                             )}
-                            
+
                             {/* If deep linked, maybe hide the token field or make it readonly. 
                                 For better UX, let's just show it readonly if present from params. */}
                             {params.token && (
@@ -111,40 +150,48 @@ export default function ResetPasswordScreen() {
                                     </ThemedText>
                                 </View>
                             )}
-                            
+
                             {!params.token && (
                                 <View style={styles.fieldGroup}>
-                                <ThemedText style={[styles.label, { color: colors.textSubtle }]}>
-                                    Reset Token
-                                </ThemedText>
-                                <View
-                                    style={[
-                                        styles.inputWrapper,
-                                        { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
-                                    ]}
-                                >
-                                    <MaterialIcons
-                                        name="vpn-key"
-                                        size={20}
-                                        color={colors.textMuted}
-                                        style={styles.inputIcon}
-                                    />
-                                    <TextInput
-                                        value={token}
-                                        onChangeText={setToken}
-                                        placeholder="Enter token"
-                                        placeholderTextColor={colors.textMuted}
-                                        autoCapitalize="none"
-                                        style={[styles.input, { color: colors.textMain }]}
-                                    />
+                                    <ThemedText style={[styles.label, { color: colors.textSubtle }]}>
+                                        Reset Token
+                                    </ThemedText>
+                                    <View
+                                        style={[
+                                            styles.inputWrapper,
+                                            { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
+                                        ]}
+                                    >
+                                        <MaterialIcons
+                                            name="vpn-key"
+                                            size={20}
+                                            color={colors.textMuted}
+                                            style={styles.inputIcon}
+                                        />
+                                        <TextInput
+                                            value={token}
+                                            onChangeText={setToken}
+                                            placeholder="Enter token"
+                                            placeholderTextColor={colors.textMuted}
+                                            autoCapitalize="none"
+                                            style={[styles.input, { color: colors.textMain }]}
+                                        />
+                                    </View>
                                 </View>
-                            </View>
                             )}
 
                             <View style={styles.fieldGroup}>
-                                <ThemedText style={[styles.label, { color: colors.textSubtle }]}>
-                                    New Password
-                                </ThemedText>
+                                <View style={styles.labelRow}>
+                                    <ThemedText style={[styles.label, { color: colors.textSubtle }]}>New Password</ThemedText>
+                                    <ThemedText
+                                        style={[
+                                            styles.charCounter,
+                                            { color: password.length >= 6 ? '#27ae60' : colors.textMuted }
+                                        ]}
+                                    >
+                                        {password.length}/6 characters
+                                    </ThemedText>
+                                </View>
                                 <View
                                     style={[
                                         styles.inputWrapper,
@@ -186,37 +233,57 @@ export default function ResetPasswordScreen() {
                                     />
                                     <TextInput
                                         value={confirmPassword}
-                                        onChangeText={setConfirmPassword}
+                                        onChangeText={(text) => {
+                                            setConfirmPassword(text);
+                                            if (!confirmTouched) setConfirmTouched(true);
+                                        }}
                                         placeholder="Re-enter password"
                                         placeholderTextColor={colors.textMuted}
                                         secureTextEntry
                                         style={[styles.input, { color: colors.textMain }]}
                                     />
                                 </View>
+
+                                {/* Password Mismatch Feedback */}
+                                {showConfirmValidation && confirmPassword.trim() !== '' && !doPasswordsMatch && (
+                                    <View style={styles.validationFeedback}>
+                                        <View style={styles.validationRow}>
+                                            <MaterialIcons name="error-outline" size={16} color="#e74c3c" />
+                                            <ThemedText style={[styles.validationText, { color: '#e74c3c' }]}>
+                                                Passwords do not match
+                                            </ThemedText>
+                                        </View>
+                                    </View>
+                                )}
                             </View>
 
                             <Pressable
                                 onPress={handleSubmit}
-                                disabled={isLoading}
+                                disabled={isLoading || !isFormValid}
                                 style={({ pressed }) => [
                                     styles.primaryButton,
-                                    { backgroundColor: accentColor, shadowColor: accentColor },
+                                    {
+                                        backgroundColor: accentColor,
+                                        shadowColor: accentColor,
+                                        opacity: (isLoading || !isFormValid) ? 0.5 : 1
+                                    },
                                     pressed && styles.buttonPressed,
                                 ]}>
-                                {isLoading ? (
-                                    <ActivityIndicator color="#ffffff" />
-                                ) : (
-                                    <View style={styles.btnContent}>
-                                        <ThemedText style={styles.primaryButtonText}>Reset Password</ThemedText>
-                                        <MaterialIcons name="check" size={18} color="#fff" />
-                                    </View>
-                                )}
+                                <View style={styles.btnContent}>
+                                    <ThemedText style={styles.primaryButtonText}>Reset Password</ThemedText>
+                                    <MaterialIcons name="check" size={18} color="#fff" />
+                                </View>
                             </Pressable>
 
                         </View>
                     </ScrollView>
                 </KeyboardAvoidingView>
             </SafeAreaView>
+            <BlockingModal
+                state={blockingState}
+                message={blockingMessage}
+                onClose={() => setBlockingState('idle')}
+            />
         </HomeBackground>
     );
 }
@@ -236,6 +303,35 @@ const styles = StyleSheet.create({
     inputWrapper: { flexDirection: 'row', alignItems: 'center', height: 50, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14 },
     inputIcon: { marginRight: 10 },
     input: { flex: 1, fontSize: 15, height: '100%' },
+
+    // Label Row (for password with counter)
+    labelRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+        marginLeft: 4,
+    },
+    charCounter: {
+        fontSize: 11,
+        fontWeight: '600',
+    },
+
+    // Validation Feedback
+    validationFeedback: {
+        marginTop: 6,
+        marginLeft: 4,
+    },
+    validationRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    validationText: {
+        fontSize: 12,
+        fontWeight: '500',
+    },
+
     primaryButton: { height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 8, shadowOpacity: 0.2, elevation: 4 },
     btnContent: { flexDirection: 'row', gap: 8, alignItems: 'center' },
     primaryButtonText: { color: '#fff', fontWeight: '700' },

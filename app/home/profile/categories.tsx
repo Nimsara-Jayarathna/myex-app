@@ -1,4 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { BlurView } from 'expo-blur';
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,8 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { BlurView } from 'expo-blur';
 
 import {
   createCategory,
@@ -20,8 +19,9 @@ import {
   setDefaultCategory,
 } from '@/api/categories';
 import { ThemedText } from '@/components/themed-text';
-import { useAppTheme } from '@/context/ThemeContext';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import { useOffline } from '@/context/OfflineContext';
+import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
 import type { Category } from '@/types';
 
@@ -29,12 +29,11 @@ import {
   HOME_BOTTOM_BAR_CLEARANCE,
   HOME_CONTENT_PADDING_H,
 } from '@/components/home/layout/spacing';
-import { SectionHeader } from '@/components/home/layout/SectionHeader';
 
 // Importing components directly from their files
-import { CategoryTabs } from '@/components/home/settings/CategoryTabs';
 import { AddCategoryInput } from '@/components/home/settings/AddCategoryInput';
 import { CategoryList } from '@/components/home/settings/CategoryList';
+import { CategoryTabs } from '@/components/home/settings/CategoryTabs';
 
 const categoryKey = ['categories'];
 const getCategoryId = (cat: Category) => cat._id ?? cat.id ?? '';
@@ -45,12 +44,14 @@ export default function SettingsScreen() {
   const { resolvedTheme, colors } = useAppTheme();
   const { offlineMode, capabilities } = useOffline();
   const queryClient = useQueryClient();
-  const router = useRouter();
   const [fixedHeaderHeight, setFixedHeaderHeight] = useState(0);
 
   // State
   const [activeTab, setActiveTab] = useState<'income' | 'expense'>('income');
   const [newCategoryName, setNewCategoryName] = useState('');
+
+  const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+  const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
   // Data Fetching
   const {
@@ -66,7 +67,7 @@ export default function SettingsScreen() {
   });
 
   // Derived State
-  const categories = data?.categories ?? [];
+  const categories = useMemo(() => data?.categories ?? [], [data]);
   const limit = data?.limit ?? DEFAULT_CATEGORY_LIMIT;
 
   const incomeCategories = useMemo(
@@ -96,17 +97,54 @@ export default function SettingsScreen() {
     currentList.some(item => item.name.trim().toLowerCase() === normalizedNewName);
 
   // Mutations
+  // Mutations
   const deleteMutation = useMutation({
     mutationFn: deleteCategory,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: categoryKey }),
+    onMutate: () => {
+      setBlockingState('loading');
+      setBlockingMessage('Deleting category...');
+    },
+    onSuccess: () => {
+      setBlockingState('success');
+      setBlockingMessage('Deleted!');
+      setTimeout(() => {
+        setBlockingState('idle');
+        setBlockingMessage(undefined);
+        queryClient.invalidateQueries({ queryKey: categoryKey });
+      }, 1000);
+    },
+    onError: (error: any) => {
+      setBlockingState('error');
+      const msg = error?.response?.data?.error?.message
+        || error?.response?.data?.message
+        || 'Failed to delete category.';
+      setBlockingMessage(msg);
+    }
   });
 
   const setDefaultMutation = useMutation({
     mutationFn: setDefaultCategory,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: categoryKey });
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    onMutate: () => {
+      setBlockingState('loading');
+      setBlockingMessage('Updating default...');
     },
+    onSuccess: () => {
+      setBlockingState('success');
+      setBlockingMessage('Default updated!');
+      setTimeout(() => {
+        setBlockingState('idle');
+        setBlockingMessage(undefined);
+        queryClient.invalidateQueries({ queryKey: categoryKey });
+        queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      }, 1000);
+    },
+    onError: (error: any) => {
+      setBlockingState('error');
+      const msg = error?.response?.data?.error?.message
+        || error?.response?.data?.message
+        || 'Failed to set default.';
+      setBlockingMessage(msg);
+    }
   });
 
   const createMutation = useMutation({
@@ -115,10 +153,27 @@ export default function SettingsScreen() {
         name: newCategoryName.trim(),
         type: activeTab,
       }),
-    onSuccess: () => {
-      setNewCategoryName('');
-      queryClient.invalidateQueries({ queryKey: categoryKey });
+    onMutate: () => {
+      setBlockingState('loading');
+      setBlockingMessage('Adding category...');
     },
+    onSuccess: () => {
+      setBlockingState('success');
+      setBlockingMessage('Added!');
+      setTimeout(() => {
+        setBlockingState('idle');
+        setBlockingMessage(undefined);
+        setNewCategoryName('');
+        queryClient.invalidateQueries({ queryKey: categoryKey });
+      }, 1000);
+    },
+    onError: (error: any) => {
+      setBlockingState('error');
+      const msg = error?.response?.data?.error?.message
+        || error?.response?.data?.message
+        || 'Failed to add category.';
+      setBlockingMessage(msg);
+    }
   });
 
   // Handlers
@@ -196,93 +251,98 @@ export default function SettingsScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.screen}
     >
-        <View
-          style={styles.fixedHeader}
-          onLayout={event => setFixedHeaderHeight(event.nativeEvent.layout.height)}
-        >
-          <View style={[styles.blurredControls, { paddingHorizontal: HOME_CONTENT_PADDING_H }]}>
-            <BlurView
-              intensity={headerBlurIntensity}
-              tint={isDark ? 'dark' : 'light'}
-              style={StyleSheet.absoluteFill}
-              pointerEvents="none"
-            />
-            <View>
-              {/* Header */}
-              <View style={styles.headerRow}>
-                {createMutation.isPending && <ActivityIndicator size="small" />}
-              </View>
-
-              {/* Error Message */}
-              {isError && (
-                <TouchableOpacity
-                  onPress={() => refetch()}
-                  style={[
-                    styles.errorBox,
-                    {
-                      backgroundColor:
-                        resolvedTheme === 'dark'
-                          ? 'rgba(239, 68, 68, 0.16)'
-                          : 'rgba(231,76,60,0.1)',
-                      borderColor:
-                        resolvedTheme === 'dark'
-                          ? 'rgba(239, 68, 68, 0.3)'
-                          : 'rgba(231,76,60,0.2)',
-                    },
-                  ]}>
-                  <ThemedText style={[styles.errorText, { color: '#ef4444' }]}>
-                    Failed to load categories. Tap to retry.
-                  </ThemedText>
-                </TouchableOpacity>
-              )}
-
-              {/* Tab Selection */}
-              <CategoryTabs
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-                incomeCount={incomeCategories.length}
-                expenseCount={expenseCategories.length}
-                maxCount={limit}
-              />
-
-              {/* Input Field */}
-              <AddCategoryInput
-                value={newCategoryName}
-                onChangeText={setNewCategoryName}
-                onAdd={handleCreateCategory}
-                activeTab={activeTab}
-                isFull={isFull}
-                isLoading={createMutation.isPending}
-                currentCount={currentCount}
-                maxCount={limit}
-                isDuplicate={isDuplicateName}
-              />
+      <View
+        style={styles.fixedHeader}
+        onLayout={event => setFixedHeaderHeight(event.nativeEvent.layout.height)}
+      >
+        <View style={[styles.blurredControls, { paddingHorizontal: HOME_CONTENT_PADDING_H }]}>
+          <BlurView
+            intensity={headerBlurIntensity}
+            tint={isDark ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+          <View>
+            {/* Header */}
+            <View style={styles.headerRow}>
+              {createMutation.isPending && <ActivityIndicator size="small" />}
             </View>
+
+            {/* Error Message */}
+            {isError && (
+              <TouchableOpacity
+                onPress={() => refetch()}
+                style={[
+                  styles.errorBox,
+                  {
+                    backgroundColor:
+                      resolvedTheme === 'dark'
+                        ? 'rgba(239, 68, 68, 0.16)'
+                        : 'rgba(231,76,60,0.1)',
+                    borderColor:
+                      resolvedTheme === 'dark'
+                        ? 'rgba(239, 68, 68, 0.3)'
+                        : 'rgba(231,76,60,0.2)',
+                  },
+                ]}>
+                <ThemedText style={[styles.errorText, { color: '#ef4444' }]}>
+                  Failed to load categories. Tap to retry.
+                </ThemedText>
+              </TouchableOpacity>
+            )}
+
+            {/* Tab Selection */}
+            <CategoryTabs
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              incomeCount={incomeCategories.length}
+              expenseCount={expenseCategories.length}
+              maxCount={limit}
+            />
+
+            {/* Input Field */}
+            <AddCategoryInput
+              value={newCategoryName}
+              onChangeText={setNewCategoryName}
+              onAdd={handleCreateCategory}
+              activeTab={activeTab}
+              isFull={isFull}
+              isLoading={createMutation.isPending}
+              currentCount={currentCount}
+              maxCount={limit}
+              isDuplicate={isDuplicateName}
+            />
           </View>
         </View>
+      </View>
 
-        <ScrollView
-          contentContainerStyle={[
-            styles.listContent,
-            {
-              paddingTop: fixedHeaderHeight + 4,
-              paddingBottom: HOME_BOTTOM_BAR_CLEARANCE,
-            },
-          ]}
-          contentInsetAdjustmentBehavior="never"
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <CategoryList
-            data={currentList}
-            activeTab={activeTab}
-            isLoading={isLoading}
-            defaultId={currentDefaultId}
-            deletingId={deletingId}
-            onDelete={handleDelete}
-            onSetDefault={handleSetDefault}
-          />
-        </ScrollView>
+      <ScrollView
+        contentContainerStyle={[
+          styles.listContent,
+          {
+            paddingTop: fixedHeaderHeight + 4,
+            paddingBottom: HOME_BOTTOM_BAR_CLEARANCE,
+          },
+        ]}
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <CategoryList
+          data={currentList}
+          activeTab={activeTab}
+          isLoading={isLoading}
+          defaultId={currentDefaultId}
+          deletingId={deletingId}
+          onDelete={handleDelete}
+          onSetDefault={handleSetDefault}
+        />
+      </ScrollView>
+      <BlockingModal
+        state={blockingState}
+        message={blockingMessage}
+        onClose={() => setBlockingState('idle')}
+      />
     </KeyboardAvoidingView>
   );
 }

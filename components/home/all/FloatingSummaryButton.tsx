@@ -1,18 +1,14 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { StyleSheet, View, Pressable, Dimensions, LayoutAnimation, ActivityIndicator } from 'react-native';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withSpring, 
-  withTiming, 
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Dimensions, Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
   FadeIn,
   FadeOut,
-  SlideInDown,
-  SlideOutDown,
-  runOnJS
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring
 } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
@@ -37,7 +33,7 @@ export function FloatingSummaryButton({ transactions, visible = true }: Floating
 
   useEffect(() => {
     scale.value = withSpring(visible ? 1 : 0);
-  }, [visible]);
+  }, [visible, scale]);
 
   // Recalculate stats when expanded or transactions change
   useEffect(() => {
@@ -48,7 +44,7 @@ export function FloatingSummaryButton({ transactions, visible = true }: Floating
         const income = transactions
           .filter(t => t.type === 'income')
           .reduce((acc, t) => acc + t.amount, 0);
-        
+
         const expense = transactions
           .filter(t => t.type === 'expense')
           .reduce((acc, t) => acc + t.amount, 0);
@@ -80,7 +76,7 @@ export function FloatingSummaryButton({ transactions, visible = true }: Floating
 
   const isDark = resolvedTheme === 'dark';
   const glassBg = isDark ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.85)';
-  const fabBg = colors.primaryAccent; 
+  const fabBg = colors.primaryAccent;
 
   const successColor = '#10b981';
   const errorColor = '#ef4444';
@@ -101,7 +97,7 @@ export function FloatingSummaryButton({ transactions, visible = true }: Floating
           style={[styles.fab, { backgroundColor: fabBg, shadowColor: colors.borderStrong }]}
           onPress={handlePress}
         >
-           <MaterialCommunityIcons name="chart-box-outline" size={26} color="#FFF" />
+          <MaterialCommunityIcons name="chart-box-outline" size={26} color="#FFF" />
         </Pressable>
       </Animated.View>
 
@@ -109,12 +105,12 @@ export function FloatingSummaryButton({ transactions, visible = true }: Floating
         <View style={styles.overlayContainer}>
           {/* Backdrop */}
           <Pressable style={styles.backdrop} onPress={handleClose}>
-            <Animated.View 
-              entering={FadeIn.duration(200)} 
-              exiting={FadeOut.duration(150)} 
-              style={styles.backdropFill} 
+            <Animated.View
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(150)}
+              style={styles.backdropFill}
             >
-              <BlurView 
+              <BlurView
                 intensity={15}
                 tint={isDark ? 'dark' : 'light'}
                 style={StyleSheet.absoluteFill}
@@ -125,46 +121,46 @@ export function FloatingSummaryButton({ transactions, visible = true }: Floating
           </Pressable>
 
           {/* Summary Card */}
-          <Animated.View 
-            entering={FadeIn.springify().damping(18).stiffness(150)} 
+          <Animated.View
+            entering={FadeIn.springify().damping(18).stiffness(150)}
             exiting={FadeOut.duration(150)}
             style={styles.cardWrapper}
           >
-             <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={styles.blurContainer}>
-                <View style={[styles.cardContent, { backgroundColor: glassBg, borderColor: colors.borderGlass }]}>
-                  <View style={styles.header}>
-                    <ThemedText type="subtitle" style={styles.title}>Summary</ThemedText>
-                    {calculating && <ActivityIndicator size="small" color={colors.primaryAccent} />}
-                  </View>
-                  
-                  <View style={styles.divider} />
-
-                  <View style={styles.row}>
-                    <View style={styles.item}>
-                      <ThemedText style={[styles.label, { color: colors.textMuted }]}>Net Income</ThemedText>
-                      <ThemedText style={[styles.value, { color: successColor }]}>
-                        {calculating ? '...' : format(stats.income)}
-                      </ThemedText>
-                    </View>
-                    <View style={styles.item}>
-                      <ThemedText style={[styles.label, { color: colors.textMuted }]}>Net Expense</ThemedText>
-                      <ThemedText style={[styles.value, { color: errorColor }]}>
-                        {calculating ? '...' : format(stats.expense)}
-                      </ThemedText>
-                    </View>
-                    <View style={styles.item}>
-                      <ThemedText style={[styles.label, { color: colors.textMuted }]}>Net Balance</ThemedText>
-                      <ThemedText style={[styles.value, { color: stats.balance >= 0 ? successColor : errorColor }]}>
-                         {calculating ? '...' : format(stats.balance)}
-                      </ThemedText>
-                    </View>
-                  </View>
-
-                  <ThemedText style={[styles.footer, { color: colors.textSubtle }]}>
-                    Based on {transactions.length} visible transactions
-                  </ThemedText>
+            <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={styles.blurContainer}>
+              <View style={[styles.cardContent, { backgroundColor: glassBg, borderColor: colors.borderGlass }]}>
+                <View style={styles.header}>
+                  <ThemedText type="subtitle" style={styles.title}>Summary</ThemedText>
+                  {calculating && <ActivityIndicator size="small" color={colors.primaryAccent} />}
                 </View>
-             </BlurView>
+
+                <View style={styles.divider} />
+
+                <View style={styles.row}>
+                  <View style={styles.item}>
+                    <ThemedText style={[styles.label, { color: colors.textMuted }]}>Net Income</ThemedText>
+                    <ThemedText style={[styles.value, { color: successColor }]}>
+                      {calculating ? '...' : format(stats.income)}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.item}>
+                    <ThemedText style={[styles.label, { color: colors.textMuted }]}>Net Expense</ThemedText>
+                    <ThemedText style={[styles.value, { color: errorColor }]}>
+                      {calculating ? '...' : format(stats.expense)}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.item}>
+                    <ThemedText style={[styles.label, { color: colors.textMuted }]}>Net Balance</ThemedText>
+                    <ThemedText style={[styles.value, { color: stats.balance >= 0 ? successColor : errorColor }]}>
+                      {calculating ? '...' : format(stats.balance)}
+                    </ThemedText>
+                  </View>
+                </View>
+
+                <ThemedText style={[styles.footer, { color: colors.textSubtle }]}>
+                  Based on {transactions.length} visible transactions
+                </ThemedText>
+              </View>
+            </BlurView>
           </Animated.View>
         </View>
       )}
@@ -172,7 +168,7 @@ export function FloatingSummaryButton({ transactions, visible = true }: Floating
   );
 }
 
-import { HOME_CONTENT_PADDING_H, HOME_CONTENT_PADDING_TOP } from '@/components/home/layout/spacing';
+
 
 const styles = StyleSheet.create({
   fabContainer: {

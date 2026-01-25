@@ -8,7 +8,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
 
 type Props = {
@@ -26,10 +25,10 @@ export function CategoryTabs({
   expenseCount,
   maxCount,
 }: Props) {
-  const { colors, resolvedTheme } = useAppTheme();
+  const { colors } = useAppTheme();
   const [containerWidth, setContainerWidth] = useState(0);
   const activeIndex = activeTab === 'expense' ? 1 : 0;
-  
+
   // Animation values
   const translateX = useSharedValue(0);
   const progress = useSharedValue(0); // 0 for income, 1 for expense
@@ -68,7 +67,7 @@ export function CategoryTabs({
     const color = interpolateColor(
       progress.value,
       [0, 1],
-      ['#ffffff', colors.textMuted] 
+      ['#ffffff', colors.textMuted]
     );
     return { color };
   });
@@ -89,7 +88,7 @@ export function CategoryTabs({
         { backgroundColor: colors.surfaceGlass, borderColor: colors.borderSoft },
       ]}
       onLayout={onLayout}>
-      
+
       {/* Animated Pill */}
       {containerWidth > 0 && (
         <Animated.View style={[styles.pill, pillStyle]} />

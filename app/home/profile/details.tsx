@@ -1,11 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, View, ScrollView } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { HomeContent } from '@/components/home/layout/HomeContent';
-import { SectionHeader } from '@/components/home/layout/SectionHeader';
-import { HOME_CONTENT_PADDING_H } from '@/components/home/layout/spacing';
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -16,7 +13,6 @@ import { EditNameSheet } from '@/components/profile/EditNameSheet';
 export default function ProfileDetailsScreen() {
   const { user } = useAuth();
   const { colors } = useAppTheme();
-  const router = useRouter();
 
   const [showEditName, setShowEditName] = useState(false);
   const [showChangeEmail, setShowChangeEmail] = useState(false);

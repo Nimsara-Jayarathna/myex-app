@@ -1,29 +1,31 @@
-import dayjs from 'dayjs';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import dayjs from 'dayjs';
+import React, { useEffect, useMemo, useState } from 'react';
+import { RefreshControl, StyleSheet, View } from 'react-native';
 
 import { deleteTransaction, getTransactionsFiltered, type TransactionFilters } from '@/api/transactions';
-import { useAuth } from '@/hooks/useAuth';
-import { useOffline } from '@/context/OfflineContext';
+import { AllFiltersSheet } from '@/components/home/all/AllFiltersSheet';
+import { FloatingSummaryButton } from '@/components/home/all/FloatingSummaryButton';
 import { TransactionList } from '@/components/home/all/TransactionList';
 import { HomeContent } from '@/components/home/layout/HomeContent';
 import { HomeStickyHeader } from '@/components/home/layout/HomeStickyHeader';
-import { useAppTheme } from '@/context/ThemeContext';
 import {
   HOME_BOTTOM_BAR_CLEARANCE,
   HOME_STICKY_HEADER_COLLAPSED_HEIGHT,
   HOME_STICKY_HEADER_EXPANDED_HEIGHT,
 } from '@/components/home/layout/spacing';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+import { useOffline } from '@/context/OfflineContext';
+import { useAppTheme } from '@/context/ThemeContext';
 import {
   type AllFilters,
   type Grouping,
   useGroupedTransactions,
   useTransactionCategories,
 } from '@/hooks/home/useTransactionLogic';
-import { AllFiltersSheet } from '@/components/home/all/AllFiltersSheet';
-import { FloatingSummaryButton } from '@/components/home/all/FloatingSummaryButton';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function AllTransactionsScreen() {
   const { isAuthenticated } = useAuth();
@@ -42,12 +44,37 @@ export default function AllTransactionsScreen() {
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [openNoteId, setOpenNoteId] = useState<string | null>(null);
 
-  const [listLayoutHeight, setListLayoutHeight] = useState(0); 
-  const [contentHeight, setContentHeight] = useState(0); 
+  const [listLayoutHeight, setListLayoutHeight] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+
+  const [isFilterUpdating, setIsFilterUpdating] = useState(false);
+  const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+  const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
+
+
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteTransaction(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+    onMutate: () => {
+      setBlockingState('loading');
+      setBlockingMessage('Deleting transaction...');
+    },
+    onSuccess: () => {
+      setBlockingState('success');
+      setBlockingMessage('Deleted!');
+      setTimeout(() => {
+        setBlockingState('idle');
+        setBlockingMessage(undefined);
+        queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      }, 1500);
+    },
+    onError: (error: any) => {
+      setBlockingState('error');
+      const msg = error?.response?.data?.error?.message
+        || error?.response?.data?.message
+        || 'Failed to delete transaction.';
+      setBlockingMessage(msg);
+    },
   });
 
   const { data, isLoading, isFetching, refetch } = useQuery({
@@ -107,14 +134,24 @@ export default function AllTransactionsScreen() {
     return { canScroll: true, enableTransition: true };
   }, [contentHeight, listLayoutHeight]);
 
+  useEffect(() => {
+    if (!isFetching && isFilterUpdating) {
+      setIsFilterUpdating(false);
+    }
+  }, [isFetching, isFilterUpdating]);
+
   React.useEffect(() => {
-    const unsubscribe = navigation.addListener('tabPress', () => {
+    const unsubscribe = (navigation as any).addListener('tabPress', () => {
       if (!offlineMode && isAuthenticated) {
         void refetch();
       }
     });
     return unsubscribe;
   }, [navigation, offlineMode, isAuthenticated, refetch]);
+
+  // Determine effective blocking state
+  const effectiveBlockingState = blockingState === 'idle' && isFilterUpdating ? 'loading' : blockingState;
+  const effectiveBlockingMessage = blockingState === 'idle' && isFilterUpdating ? 'Updating filters...' : blockingMessage;
 
   return (
     <View style={{ flex: 1 }}>
@@ -163,16 +200,23 @@ export default function AllTransactionsScreen() {
           categories={categoriesForType}
           onClose={() => setIsFiltersOpen(false)}
           onApply={(nextFilters, nextGrouping) => {
+            setIsFilterUpdating(true);
             setFilters(nextFilters);
             setGrouping(nextGrouping);
           }}
         />
       </HomeContent>
 
-      <FloatingSummaryButton 
-        transactions={filteredTransactions} 
-        visible={true} 
+      <FloatingSummaryButton
+        transactions={filteredTransactions}
+        visible={true}
       />
+      <BlockingModal
+        state={effectiveBlockingState}
+        message={effectiveBlockingMessage}
+        onClose={() => setBlockingState('idle')}
+      />
+      {(isLoading || isFetching) && !isFilterUpdating && <LoadingOverlay />}
     </View>
   );
 }

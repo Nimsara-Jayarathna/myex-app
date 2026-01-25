@@ -66,7 +66,8 @@ Blipzo is a modern, offline-first personal finance application built with Expo a
 
 ## Release Notes
 Detailed release notes for each version can be found in the [docs/releases](docs/releases/) directory.
-- Latest Release: [v1.0.0](docs/releases/v1.0.0.md)
+- **Latest Release**: [v1.1.0](docs/releases/v1.1.0.md) - *Glassmorphic UI, Robust Offline Mode, Advanced Auth*
+- Previous Release: [v1.0.0](docs/releases/v1.0.0.md)
 
 
 ## Scripts
