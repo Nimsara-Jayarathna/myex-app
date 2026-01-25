@@ -1,8 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { logoutSession } from '@/api/auth';
 import { HomeContent } from '@/components/home/layout/HomeContent';
@@ -14,7 +14,7 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function ProfileScreen() {
-  const version = Constants.expoConfig?.version ?? '1.0.0';
+  const version = Constants.expoConfig?.version ?? '1.1.0';
   const { user, logout } = useAuth();
   const { colors } = useAppTheme();
   const { offlineMode, capabilities, tryGoOnline, reconnectionState, reconnectionMessage, resetReconnectionState } = useOffline();
@@ -35,9 +35,9 @@ export default function ProfileScreen() {
         'You need to go online content to proceed.',
         [
           { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Go Online', 
-            onPress: handleGoOnline 
+          {
+            text: 'Go Online',
+            onPress: handleGoOnline
           }
         ]
       );
@@ -56,168 +56,168 @@ export default function ProfileScreen() {
         setBlockingState('success'); // Optional: show success before redirect? Or just redirect.
         // Usually logout is quick. Let's just redirect after a brief moment or immediately.
         // Actually, let's show success "Logged out" for 1s.
-         setBlockingMessage('See you soon!');
-         setTimeout(() => {
-            setBlockingState('idle');
-            logout();
-            router.replace('/welcome');
-         }, 1000);
+        setBlockingMessage('See you soon!');
+        setTimeout(() => {
+          setBlockingState('idle');
+          logout();
+          router.replace('/welcome');
+        }, 1000);
       }, 500);
     } catch {
-       // If logout fails, forced local logout
-       setBlockingState('idle');
-       logout();
-       router.replace('/welcome');
+      // If logout fails, forced local logout
+      setBlockingState('idle');
+      logout();
+      router.replace('/welcome');
     }
   };
 
   return (
     <HomeContent>
-        <View
-          style={[
-            styles.groupCard,
-            { backgroundColor: colors.surfaceGlassThick, borderColor: colors.borderGlass },
-          ]}
+      <View
+        style={[
+          styles.groupCard,
+          { backgroundColor: colors.surfaceGlassThick, borderColor: colors.borderGlass },
+        ]}
+      >
+        {/* Profile Setting */}
+        <Pressable
+          onPress={() => handleRestrictedAction(() => router.navigate('/home/profile/details'))}
+          style={styles.listRow}
         >
-          {/* Profile Setting */}
-          <Pressable
-            onPress={() => handleRestrictedAction(() => router.navigate('/home/profile/details'))}
-            style={styles.listRow}
-          >
-            <View style={styles.listRowLeft}>
-              <View style={[styles.iconBadge, { backgroundColor: colors.surface2 }]}>
-                <MaterialIcons name="person" size={18} color={colors.textMuted} />
-              </View>
-              <ThemedText style={[styles.listLabel, offlineMode && { color: colors.textSubtle }]}>Profile setting</ThemedText>
+          <View style={styles.listRowLeft}>
+            <View style={[styles.iconBadge, { backgroundColor: colors.surface2 }]}>
+              <MaterialIcons name="person" size={18} color={colors.textMuted} />
             </View>
-            <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
-          </Pressable>
+            <ThemedText style={[styles.listLabel, offlineMode && { color: colors.textSubtle }]}>Profile setting</ThemedText>
+          </View>
+          <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
+        </Pressable>
 
-          <View style={[styles.rowDivider, { backgroundColor: colors.borderSoft }]} />
+        <View style={[styles.rowDivider, { backgroundColor: colors.borderSoft }]} />
 
-          {/* Security Setting */}
-          <Pressable
-            onPress={() => handleRestrictedAction(() => router.navigate('/home/profile/security'))}
-            style={styles.listRow}
-          >
-            <View style={styles.listRowLeft}>
-              <View style={[styles.iconBadge, { backgroundColor: colors.surface2 }]}>
-                <MaterialIcons name="security" size={18} color={colors.textMuted} />
-              </View>
-              <ThemedText style={[styles.listLabel, offlineMode && { color: colors.textSubtle }]}>Security setting</ThemedText>
-            </View>
-            <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
-          </Pressable>
-
-          <View style={[styles.rowDivider, { backgroundColor: colors.borderSoft }]} />
-
-          {/* Category Setting */}
-          <Pressable
-            onPress={() => {
-               if (!capabilities.canManageCategories && !offlineMode) return;
-               handleRestrictedAction(() => router.navigate('/home/profile/categories'));
-            }}
-            disabled={!capabilities.canManageCategories && !offlineMode}
-            style={styles.listRow}
-          >
-            <View style={styles.listRowLeft}>
-              <View style={[styles.iconBadge, { backgroundColor: colors.surface2 }]}>
-                <MaterialIcons name="category" size={18} color={colors.textMuted} />
-              </View>
-              <ThemedText
-                style={[
-                  styles.listLabel,
-                  (offlineMode || !capabilities.canManageCategories) && { color: colors.textSubtle },
-                ]}
-              >
-                Category setting
-              </ThemedText>
-            </View>
-            <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
-          </Pressable>
-
-          <View style={[styles.rowDivider, { backgroundColor: colors.borderSoft }]} />
-
-          {/* Currency Setting */}
-          <Pressable
-            onPress={() => handleRestrictedAction(() => router.navigate('/home/profile/currency'))}
-            style={styles.listRow}
-          >
-            <View style={styles.listRowLeft}>
-              <View style={[styles.iconBadge, { backgroundColor: colors.surface2 }]}>
-                <MaterialIcons name="attach-money" size={18} color={colors.textMuted} />
-              </View>
-              <ThemedText
-                style={[
-                  styles.listLabel,
-                  offlineMode && { color: colors.textSubtle },
-                ]}
-              >
-                Currency setting
-              </ThemedText>
-            </View>
-            <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
-          </Pressable>
-        </View>
-
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: colors.surfaceGlassThick, borderColor: colors.borderGlass },
-          ]}
+        {/* Security Setting */}
+        <Pressable
+          onPress={() => handleRestrictedAction(() => router.navigate('/home/profile/security'))}
+          style={styles.listRow}
         >
-          <ThemedText style={[styles.label, { color: colors.textMuted }]}>Theme</ThemedText>
-          <ThemeSwitcher />
-        </View>
+          <View style={styles.listRowLeft}>
+            <View style={[styles.iconBadge, { backgroundColor: colors.surface2 }]}>
+              <MaterialIcons name="security" size={18} color={colors.textMuted} />
+            </View>
+            <ThemedText style={[styles.listLabel, offlineMode && { color: colors.textSubtle }]}>Security setting</ThemedText>
+          </View>
+          <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
+        </Pressable>
 
-        <View style={styles.sectionSpacer} />
+        <View style={[styles.rowDivider, { backgroundColor: colors.borderSoft }]} />
 
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: colors.surfaceGlassThick, borderColor: colors.borderGlass },
-          ]}
+        {/* Category Setting */}
+        <Pressable
+          onPress={() => {
+            if (!capabilities.canManageCategories && !offlineMode) return;
+            handleRestrictedAction(() => router.navigate('/home/profile/categories'));
+          }}
+          disabled={!capabilities.canManageCategories && !offlineMode}
+          style={styles.listRow}
         >
-          <ThemedText style={[styles.label, { color: colors.textMuted }]}>Connectivity</ThemedText>
-          <Pressable
-            onPress={handleGoOnline}
-            disabled={!offlineMode}
-            style={({ pressed }) => [
-              styles.goOnlineButton,
-              {
-                backgroundColor: offlineMode ? colors.primaryAccent : colors.surface2,
-                opacity: pressed ? 0.85 : 1,
-              },
-            ]}
-          >
+          <View style={styles.listRowLeft}>
+            <View style={[styles.iconBadge, { backgroundColor: colors.surface2 }]}>
+              <MaterialIcons name="category" size={18} color={colors.textMuted} />
+            </View>
             <ThemedText
               style={[
-                styles.goOnlineText,
-                { color: offlineMode ? '#ffffff' : colors.textMuted },
+                styles.listLabel,
+                (offlineMode || !capabilities.canManageCategories) && { color: colors.textSubtle },
               ]}
             >
-              {offlineMode ? 'Go online' : 'Online'}
+              Category setting
             </ThemedText>
-          </Pressable>
-        </View>
+          </View>
+          <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
+        </Pressable>
 
-        <View style={styles.footer}>
-          <Pressable
-            onPress={handleLogout}
-            style={({ pressed }) => [
-              styles.logoutButton,
-              { backgroundColor: '#ef4444' },
-              pressed && styles.logoutButtonPressed,
-            ]}>
-            <ThemedText style={styles.logoutText}>Log out</ThemedText>
-          </Pressable>
+        <View style={[styles.rowDivider, { backgroundColor: colors.borderSoft }]} />
 
-        </View>
-        <BlockingModal 
-          state={blockingState} 
-          message={blockingMessage} 
-          onClose={() => setBlockingState('idle')} // Usually logout error doesn't need dismissal but fallback
-        />
+        {/* Currency Setting */}
+        <Pressable
+          onPress={() => handleRestrictedAction(() => router.navigate('/home/profile/currency'))}
+          style={styles.listRow}
+        >
+          <View style={styles.listRowLeft}>
+            <View style={[styles.iconBadge, { backgroundColor: colors.surface2 }]}>
+              <MaterialIcons name="attach-money" size={18} color={colors.textMuted} />
+            </View>
+            <ThemedText
+              style={[
+                styles.listLabel,
+                offlineMode && { color: colors.textSubtle },
+              ]}
+            >
+              Currency setting
+            </ThemedText>
+          </View>
+          <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
+        </Pressable>
+      </View>
+
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: colors.surfaceGlassThick, borderColor: colors.borderGlass },
+        ]}
+      >
+        <ThemedText style={[styles.label, { color: colors.textMuted }]}>Theme</ThemedText>
+        <ThemeSwitcher />
+      </View>
+
+      <View style={styles.sectionSpacer} />
+
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: colors.surfaceGlassThick, borderColor: colors.borderGlass },
+        ]}
+      >
+        <ThemedText style={[styles.label, { color: colors.textMuted }]}>Connectivity</ThemedText>
+        <Pressable
+          onPress={handleGoOnline}
+          disabled={!offlineMode}
+          style={({ pressed }) => [
+            styles.goOnlineButton,
+            {
+              backgroundColor: offlineMode ? colors.primaryAccent : colors.surface2,
+              opacity: pressed ? 0.85 : 1,
+            },
+          ]}
+        >
+          <ThemedText
+            style={[
+              styles.goOnlineText,
+              { color: offlineMode ? '#ffffff' : colors.textMuted },
+            ]}
+          >
+            {offlineMode ? 'Go online' : 'Online'}
+          </ThemedText>
+        </Pressable>
+      </View>
+
+      <View style={styles.footer}>
+        <Pressable
+          onPress={handleLogout}
+          style={({ pressed }) => [
+            styles.logoutButton,
+            { backgroundColor: '#ef4444' },
+            pressed && styles.logoutButtonPressed,
+          ]}>
+          <ThemedText style={styles.logoutText}>Log out</ThemedText>
+        </Pressable>
+
+      </View>
+      <BlockingModal
+        state={blockingState}
+        message={blockingMessage}
+        onClose={() => setBlockingState('idle')} // Usually logout error doesn't need dismissal but fallback
+      />
 
     </HomeContent>
   );
