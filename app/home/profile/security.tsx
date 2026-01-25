@@ -1,11 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { HomeContent } from '@/components/home/layout/HomeContent';
-import { SectionHeader } from '@/components/home/layout/SectionHeader';
-import { HOME_CONTENT_PADDING_H } from '@/components/home/layout/spacing';
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
 
@@ -13,7 +10,6 @@ import { ChangePasswordSheet } from '@/components/profile/ChangePasswordSheet';
 
 export default function SecuritySettingsScreen() {
   const { colors } = useAppTheme();
-  const router = useRouter();
   const [showChangePassword, setShowChangePassword] = useState(false);
 
   return (

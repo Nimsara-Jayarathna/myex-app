@@ -1,11 +1,9 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     KeyboardAvoidingView,
-    LayoutAnimation,
     Platform,
     Pressable,
     ScrollView,
@@ -18,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { forgotPassword } from '@/api/auth';
 import { HomeBackground } from '@/components/home/HomeBackground';
 import { ThemedText } from '@/components/themed-text';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import { useAppTheme } from '@/context/ThemeContext';
 
 export default function ForgotPasswordScreen() {
@@ -29,17 +28,86 @@ export default function ForgotPasswordScreen() {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+    const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+    const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
+
+    // Validation states
+    const [emailTouched, setEmailTouched] = useState(false);
+    const [showEmailValidation, setShowEmailValidation] = useState(false);
+
+    // Rate limiting timer
+    const [resendTimer, setResendTimer] = useState(0);
+    const [canResend, setCanResend] = useState(true);
+
     const mutation = useMutation({
         mutationFn: forgotPassword,
-        onSuccess: () => {
+        onMutate: () => {
             setErrorMessage(null);
-            setSuccessMessage('If that email exists, we sent a reset link.');
+            setSuccessMessage(null);
+            setBlockingState('loading');
+            setBlockingMessage('Sending reset link...');
         },
-        onError: () => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setErrorMessage('Something went wrong. Please try again.');
+        onSuccess: () => {
+            setBlockingState('success');
+            setBlockingMessage('Link sent!');
+            setTimeout(() => {
+                setBlockingState('idle');
+                setBlockingMessage(undefined);
+                setSuccessMessage('If that email exists, we sent a reset link.');
+
+                // Start 60-second timer after successful send
+                setResendTimer(60);
+                setCanResend(false);
+            }, 1500);
+        },
+        onError: (error: any) => {
+            setBlockingState('error');
+            const msg = error?.response?.data?.error?.message
+                || error?.response?.data?.message
+                || 'Something went wrong.';
+            setBlockingMessage(msg);
+            // Fallback for non-blocking error display if needed, but modal handles it.
         },
     });
+
+    // Email validation with debounce
+    useEffect(() => {
+        if (!emailTouched || email.trim() === '') {
+            setShowEmailValidation(false);
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setShowEmailValidation(true);
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [email, emailTouched]);
+
+    // Timer effect for rate limiting
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (resendTimer > 0) {
+            interval = setInterval(() => {
+                setResendTimer((prev) => {
+                    if (prev <= 1) {
+                        setCanResend(true);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [resendTimer]);
+
+    // Validation helper
+    const isValidEmail = (email: string): boolean => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email.trim());
+    };
+
+    const isEmailValid = isValidEmail(email);
 
     const isLoading = mutation.isPending;
 
@@ -67,6 +135,14 @@ export default function ForgotPasswordScreen() {
                     >
                         {/* Header */}
                         <View style={styles.header}>
+                            {/* Back Button */}
+                            <Pressable
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <MaterialIcons name="arrow-back" size={24} color={colors.textMain} />
+                            </Pressable>
+
                             <ThemedText type="title" style={[styles.title, { color: colors.textMain }]}>
                                 Reset Password
                             </ThemedText>
@@ -114,7 +190,10 @@ export default function ForgotPasswordScreen() {
                                     />
                                     <TextInput
                                         value={email}
-                                        onChangeText={setEmail}
+                                        onChangeText={(text) => {
+                                            setEmail(text);
+                                            if (!emailTouched) setEmailTouched(true);
+                                        }}
                                         placeholder="name@example.com"
                                         placeholderTextColor={colors.textMuted}
                                         keyboardType="email-address"
@@ -122,38 +201,50 @@ export default function ForgotPasswordScreen() {
                                         style={[styles.input, { color: colors.textMain }]}
                                     />
                                 </View>
+
+                                {/* Email Validation Feedback - Error Only */}
+                                {showEmailValidation && email.trim() !== '' && !isEmailValid && (
+                                    <View style={styles.validationFeedback}>
+                                        <View style={styles.validationRow}>
+                                            <MaterialIcons name="error-outline" size={16} color="#e74c3c" />
+                                            <ThemedText style={[styles.validationText, { color: '#e74c3c' }]}>
+                                                Please enter a valid email address
+                                            </ThemedText>
+                                        </View>
+                                    </View>
+                                )}
                             </View>
 
                             <Pressable
                                 onPress={handleSubmit}
-                                disabled={isLoading}
+                                disabled={isLoading || !isEmailValid || !canResend}
                                 style={({ pressed }) => [
                                     styles.primaryButton,
-                                    { backgroundColor: accentColor, shadowColor: accentColor },
+                                    {
+                                        backgroundColor: accentColor,
+                                        shadowColor: accentColor,
+                                        opacity: (isLoading || !isEmailValid || !canResend) ? 0.5 : 1
+                                    },
                                     pressed && styles.buttonPressed,
                                 ]}>
-                                {isLoading ? (
-                                    <ActivityIndicator color="#ffffff" />
-                                ) : (
-                                    <View style={styles.btnContent}>
-                                        <ThemedText style={styles.primaryButtonText}>Send Reset Link</ThemedText>
-                                        <MaterialIcons name="arrow-forward" size={18} color="#fff" />
-                                    </View>
-                                )}
+                                <View style={styles.btnContent}>
+                                    <ThemedText style={styles.primaryButtonText}>
+                                        {canResend ? 'Send Reset Link' : `Resend (${resendTimer}s)`}
+                                    </ThemedText>
+                                    <MaterialIcons name="arrow-forward" size={18} color="#fff" />
+                                </View>
                             </Pressable>
 
-                            {successMessage && (
-                                <Pressable onPress={() => router.push('/auth/reset-password')} style={{ marginTop: 16, alignSelf: 'center' }}>
-                                    <ThemedText style={{ color: accentColor, fontWeight: '600' }}>
-                                        Have a code? Enter it here
-                                    </ThemedText>
-                                </Pressable>
-                            )}
 
                         </View>
                     </ScrollView>
                 </KeyboardAvoidingView>
             </SafeAreaView>
+            <BlockingModal
+                state={blockingState}
+                message={blockingMessage}
+                onClose={() => setBlockingState('idle')}
+            />
         </HomeBackground>
     );
 }
@@ -173,6 +264,22 @@ const styles = StyleSheet.create({
     inputWrapper: { flexDirection: 'row', alignItems: 'center', height: 50, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14 },
     inputIcon: { marginRight: 10 },
     input: { flex: 1, fontSize: 15, height: '100%' },
+
+    // Validation Feedback
+    validationFeedback: {
+        marginTop: 6,
+        marginLeft: 4,
+    },
+    validationRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    validationText: {
+        fontSize: 12,
+        fontWeight: '500',
+    },
+
     primaryButton: { height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 8, shadowOpacity: 0.2, elevation: 4 },
     btnContent: { flexDirection: 'row', gap: 8, alignItems: 'center' },
     primaryButtonText: { color: '#fff', fontWeight: '700' },

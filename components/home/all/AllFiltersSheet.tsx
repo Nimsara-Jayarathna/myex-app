@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import {
   Modal,
@@ -48,6 +49,23 @@ export function AllFiltersSheet({
     onClose();
   };
 
+  const handleReset = () => {
+    const defaultFilters: AllFilters = {
+      startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
+      endDate: dayjs().endOf('month').format('YYYY-MM-DD'),
+      typeFilter: 'all',
+      categoryFilter: 'all',
+      sortField: 'date',
+      sortDirection: 'desc',
+    };
+    const defaultGrouping: Grouping = 'none';
+
+    setDraftFilters(defaultFilters);
+    setDraftGrouping(defaultGrouping);
+    onApply(defaultFilters, defaultGrouping);
+    onClose();
+  };
+
   const visibleCategories = React.useMemo(() => {
     if (draftFilters.typeFilter === 'all') return categories;
     return categories.filter((c) => c.type === draftFilters.typeFilter);
@@ -71,18 +89,28 @@ export function AllFiltersSheet({
           style={[
             styles.sheet,
             {
-              backgroundColor: colors.surfaceGlassThick,
+              backgroundColor: colors.surface1, // Solid background to show clearly over content
               borderColor: colors.borderGlass,
               shadowColor: colors.textMain,
             },
           ]}>
           <View style={[styles.handle, { backgroundColor: colors.borderSoft }]} />
-          <ThemedText type="title" style={styles.title}>
-            Filters &amp; sorting
-          </ThemedText>
-          <ThemedText style={[styles.subtitle, { color: colors.textMuted }]}>
-            Tune the date range, type, category, sort and grouping for this view.
-          </ThemedText>
+          
+          <View style={styles.header}>
+            <View>
+              <ThemedText type="title" style={styles.title}>
+                Filters & sorting
+              </ThemedText>
+              <ThemedText style={[styles.subtitle, { color: colors.textMuted }]}>
+                Tune the date range, type, category, sort and grouping.
+              </ThemedText>
+            </View>
+            <Pressable onPress={handleReset} style={styles.resetButton}>
+              <ThemedText style={[styles.resetText, { color: colors.primaryAccent }]}>
+                Reset
+              </ThemedText>
+            </Pressable>
+          </View>
 
           <ScrollView
             contentContainerStyle={styles.content}
@@ -175,6 +203,21 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: 16,
     gap: 12,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  resetButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginTop: 4,
+  },
+  resetText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   footerRow: {
     flexDirection: 'row',

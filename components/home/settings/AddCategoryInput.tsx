@@ -1,15 +1,13 @@
+import { useAppTheme } from '@/context/ThemeContext';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons'; // Added icon for visual cue
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Platform,
   StyleSheet,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons'; // Added icon for visual cue
-import { ThemedText } from '@/components/themed-text';
-import { useAppTheme } from '@/context/ThemeContext';
 
 type Props = {
   value: string;
@@ -36,7 +34,7 @@ export function AddCategoryInput({
 }: Props) {
   const [isFocused, setIsFocused] = useState(false);
   const { colors } = useAppTheme();
-  
+
   const isDisabled = !value.trim() || isFull || isLoading || isDuplicate;
 
   return (
@@ -48,7 +46,7 @@ export function AddCategoryInput({
           isFocused && [styles.inputWrapperFocused, { borderColor: colors.primaryAccent }],
           isFull && [styles.inputWrapperDisabled, { backgroundColor: colors.surface2 }],
         ]}>
-        
+
         {/* Input Field */}
         <TextInput
           style={[
@@ -60,20 +58,20 @@ export function AddCategoryInput({
             isFull
               ? `Limit reached (${currentCount}/${maxCount})`
               : isDuplicate
-              ? 'Category already exists'
-              : `Add ${activeTab} category (${currentCount}/${maxCount})...`
+                ? 'Category already exists'
+                : `Add ${activeTab} category (${currentCount}/${maxCount})...`
           }
           placeholderTextColor={colors.textSubtle}
           value={value}
           onChangeText={onChangeText}
-          
+
           // --- KEYBOARD UX IMPROVEMENTS ---
           returnKeyType="done"
           onSubmitEditing={() => {
             if (!isDisabled) onAdd();
           }}
           // KEEPS KEYBOARD OPEN after adding, so you can add another immediately
-          blurOnSubmit={false} 
+          blurOnSubmit={false}
           // iOS: Don't let them hit 'Done' if empty
           enablesReturnKeyAutomatically={true}
           // iOS: 'X' button to clear text
@@ -81,7 +79,7 @@ export function AddCategoryInput({
           autoCorrect={false}
           autoCapitalize="sentences"
           // --------------------------------
-          
+
           editable={!isFull && !isLoading}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -94,12 +92,12 @@ export function AddCategoryInput({
             isDisabled
               ? [styles.iconButtonDisabled, { backgroundColor: colors.surface2 }]
               : [
-                  styles.iconButtonActive,
-                  {
-                    backgroundColor: colors.primaryAccent,
-                    shadowColor: colors.primaryAccent,
-                  },
-                ],
+                styles.iconButtonActive,
+                {
+                  backgroundColor: colors.primaryAccent,
+                  shadowColor: colors.primaryAccent,
+                },
+              ],
           ]}
           onPress={onAdd}
           disabled={isDisabled}
@@ -108,10 +106,10 @@ export function AddCategoryInput({
           {isLoading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <MaterialIcons 
-              name="add" 
-              size={24} 
-              color={isDisabled ? colors.textSubtle : "#fff"} 
+            <MaterialIcons
+              name="add"
+              size={24}
+              color={isDisabled ? colors.textSubtle : "#fff"}
             />
           )}
         </TouchableOpacity>
@@ -171,7 +169,7 @@ const styles = StyleSheet.create({
   },
   iconButtonDisabled: {
   },
-  
+
   // Warning Banner
   warningBanner: {
     marginTop: 12,

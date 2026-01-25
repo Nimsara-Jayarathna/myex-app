@@ -30,7 +30,7 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
+  withCredentials: false, // We handle cookies manually
   timeout: 8000,
 });
 
@@ -56,10 +56,10 @@ const shouldSkipRefresh = (url?: string) => {
   }
 
   return [
-    `/api/${API_VERSION}/auth/login`,
-    `/api/${API_VERSION}/auth/register`,
-    `/api/${API_VERSION}/auth/refresh`,
-    `/api/${API_VERSION}/auth/logout`,
+    '/auth/login',
+    '/auth/register',
+    '/auth/refresh',
+    '/auth/logout',
   ].some(path => url.includes(path));
 };
 
@@ -69,8 +69,8 @@ const refreshSession = async () => {
   if (!refreshRequest) {
     refreshRequest = apiClient
       .post<AuthResponse>(`/api/${API_VERSION}/auth/refresh`)
-      .then(response => {
-        void runFullSync(response.data?.user);
+      .then(() => {
+        // Just refresh token, no sync side-effect
       })
       .finally(() => {
         refreshRequest = null;
@@ -80,12 +80,68 @@ const refreshSession = async () => {
   return refreshRequest;
 };
 
+const AUTH_ENDPOINTS = ['/auth/login', '/auth/register/complete', '/auth/refresh'];
+
 apiClient.interceptors.response.use(
   response => {
+    // Capture cookies from auth responses
+    const url = response.config.url || '';
+    if (AUTH_ENDPOINTS.some(path => url.includes(path))) {
+      let setCookieHeaders: string[] = [];
+
+      // CRITICAL FIX: React Native/Axios doesn't preserve multiple headers with same name
+      // We must access the raw XMLHttpRequest to get ALL Set-Cookie headers
+      // @ts-ignore - React Native XMLHttpRequest exposes getAllResponseHeaders()
+      if (response.request?.getAllResponseHeaders) {
+        try {
+          const rawHeaders = response.request.getAllResponseHeaders();
+
+          // Extract ALL set-cookie headers (case-insensitive)
+          const cookieMatches = rawHeaders.match(/set-cookie:\s*([^\r\n]+)/gi);
+          if (cookieMatches && cookieMatches.length > 0) {
+            // Each match might contain MULTIPLE cookies separated by commas
+            // Example: "set-cookie: accessToken=...; SameSite=Lax, refreshToken=...; SameSite=Lax"
+            cookieMatches.forEach((match: string) => {
+              const headerValue = match.replace(/set-cookie:\s*/i, '');
+
+              // Split by comma BUT only if followed by a cookie name (e.g., "accessToken=", "refreshToken=")
+              // Regex: split on ", " only when followed by word characters and "="
+              const cookieParts = headerValue.split(/,\s*(?=[a-zA-Z_][a-zA-Z0-9_]*=)/);
+
+              setCookieHeaders.push(...cookieParts);
+            });
+          }
+        } catch (e) {
+          // Silently fall back to parsed headers
+        }
+      }
+
+      // Fallback: Try parsed headers (might only have 1 cookie due to overwrite issue)
+      if (setCookieHeaders.length === 0) {
+        const parsed = response.headers['set-cookie'];
+        if (Array.isArray(parsed)) {
+          setCookieHeaders = parsed;
+        } else if (typeof parsed === 'string') {
+          setCookieHeaders = [parsed];
+        }
+
+      }
+
+
+      if (setCookieHeaders.length > 0) {
+        // Extract only the 'name=value' part from each Set-Cookie string
+        const cleanCookies = setCookieHeaders.map(c => c.split(';')[0]);
+
+        useAuthStore.getState().setCookies(cleanCookies);
+        logDebug('Captured Cookies', { count: cleanCookies.length, cookies: cleanCookies });
+      }
+    }
+
     logDebug('API Response', {
       url: response.config.url,
       status: response.status,
       data: response.data,
+      headers: response.headers,
     });
     return response;
   },
@@ -93,11 +149,14 @@ apiClient.interceptors.response.use(
     logError('API Response Error', error);
     const status = error.response?.status as number | undefined;
     const originalRequest = error.config as RetriableRequest | undefined;
+    const { hasValidSession, isAuthenticated } = useAuthStore.getState();
+    const canAttemptRefresh = hasValidSession || isAuthenticated;
 
     if (
       originalRequest &&
       isAuthErrorStatus(status) &&
       !originalRequest._retry &&
+      canAttemptRefresh &&
       !shouldSkipRefresh(originalRequest.url)
     ) {
       originalRequest._retry = true;
@@ -105,6 +164,7 @@ apiClient.interceptors.response.use(
         await refreshSession();
         return apiClient(originalRequest);
       } catch (refreshError) {
+        // Only logout if refresh itself fails (not a network error)
         if (!isNetworkOrTimeoutError(refreshError)) {
           useAuthStore.getState().logout();
           void clearDb();
@@ -113,10 +173,8 @@ apiClient.interceptors.response.use(
       }
     }
 
-    if (status === 401) {
-      useAuthStore.getState().logout();
-      void clearDb();
-    }
+    // Don't logout here - the above logic already handled auth errors
+    // If we reach here with a 401, it means refresh was skipped or not applicable
 
     return Promise.reject(error);
   }
@@ -124,10 +182,18 @@ apiClient.interceptors.response.use(
 
 apiClient.interceptors.request.use(
   request => {
+    const { cookies } = useAuthStore.getState();
+    if (cookies && cookies.length > 0) {
+      // Join cookies with '; ' and strip attributes if needed, though raw usually works
+      // Simply joining the array from set-cookie often works for the Cookie header
+      request.headers.Cookie = cookies.join('; ');
+    }
+
     logDebug('API Request', {
       url: request.url,
       method: request.method,
       data: sanitizeRequestData(request.data),
+      headers: request.headers,
     });
     return request;
   },
@@ -168,4 +234,3 @@ export const apiRequest = async <T>(
     throw error;
   }
 };
-

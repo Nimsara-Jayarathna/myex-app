@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import {
-  ActivityIndicator,
   Modal,
   Pressable,
   StyleSheet,
@@ -8,8 +7,9 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { useAppTheme } from '@/context/ThemeContext';
+import { BlockingModal } from '@/components/ui/BlockingModal';
 import { useOffline } from '@/context/OfflineContext';
+import { useAppTheme } from '@/context/ThemeContext';
 
 export const OfflinePromptHost: React.FC = () => {
   const { colors } = useAppTheme();
@@ -18,6 +18,9 @@ export const OfflinePromptHost: React.FC = () => {
     isPromptRetrying,
     confirmOfflineMode,
     retryConnection,
+    promptBlockingState,
+    promptBlockingMessage,
+    resetPromptBlockingState,
   } = useOffline();
 
   const reason = useMemo(
@@ -30,7 +33,7 @@ export const OfflinePromptHost: React.FC = () => {
       visible={prompt.visible}
       transparent
       animationType="slide"
-      onRequestClose={() => {}}
+      onRequestClose={() => { }}
     >
       <View style={styles.backdrop}>
         <View style={[styles.sheet, { backgroundColor: colors.surface1, borderColor: colors.borderSoft }]}>
@@ -52,13 +55,9 @@ export const OfflinePromptHost: React.FC = () => {
               accessibilityLabel={prompt.primaryLabel}
               disabled={isPromptRetrying}
             >
-              {isPromptRetrying ? (
-                <ActivityIndicator size="small" color={colors.primaryAccent} />
-              ) : (
-                <ThemedText style={[styles.buttonText, { color: colors.textMain }]}>
-                  {prompt.primaryLabel}
-                </ThemedText>
-              )}
+              <ThemedText style={[styles.buttonText, { color: colors.textMain }]}>
+                {prompt.primaryLabel}
+              </ThemedText>
             </Pressable>
             {prompt.allowOffline ? (
               <Pressable
@@ -73,6 +72,12 @@ export const OfflinePromptHost: React.FC = () => {
           </View>
         </View>
       </View>
+
+      <BlockingModal
+        state={promptBlockingState}
+        message={promptBlockingMessage}
+        onClose={resetPromptBlockingState}
+      />
     </Modal>
   );
 };

@@ -1,4 +1,5 @@
 import { API_VERSION, apiClient } from '@/api/client';
+import { useAuthStore } from '@/context/auth-store';
 import type {
   AuthResponse,
   ChangeEmailConfirmRequest,
@@ -22,7 +23,7 @@ import { runFullSync } from '@/utils/sync-service';
 
 export const login = async (credentials: LoginRequest) => {
   const { data } = await apiClient.post<AuthResponse>(`/api/v1/auth/login`, credentials);
-  void runFullSync(data?.user);
+  useAuthStore.getState().setHasValidSession(true);
   return data;
 };
 
@@ -35,13 +36,15 @@ export const registerInit = async (payload: RegisterInitRequest) => {
 
 export const registerVerify = async (payload: RegisterVerifyRequest) => {
   const { data } = await apiClient.post<RegisterVerifyResponse>(`/api/v1.1/auth/register/verify`, payload);
+  if ('data' in data) return (data as any).data;
   return data;
 };
 
 export const registerComplete = async (payload: RegisterCompleteRequest) => {
   const { data } = await apiClient.post<AuthResponse>(`/api/v1.1/auth/register/complete`, payload);
-  void runFullSync(data?.user);
-  return data;
+  const responseData = ('data' in data ? (data as any).data : data) as AuthResponse;
+  useAuthStore.getState().setHasValidSession(true);
+  return responseData;
 };
 
 // --- Password Management ---
@@ -70,6 +73,7 @@ export const changeEmailInit = async () => {
 
 export const changeEmailVerifyCurrent = async (payload: ChangeEmailVerifyRequest) => {
   const { data } = await apiClient.post<ChangeEmailVerifyResponse>(`/api/v1.1/auth/email/change/verify-current`, payload);
+  if ('data' in data) return (data as any).data;
   return data;
 };
 
@@ -80,6 +84,7 @@ export const changeEmailRequestNew = async (payload: ChangeEmailRequestNewReques
 
 export const changeEmailConfirm = async (payload: ChangeEmailConfirmRequest) => {
   const { data } = await apiClient.post<{ message: string; email: string }>(`/api/v1.1/auth/email/change/confirm`, payload);
+  if ('data' in data) return (data as any).data;
   return data;
 };
 
@@ -87,6 +92,7 @@ export const changeEmailConfirm = async (payload: ChangeEmailConfirmRequest) => 
 
 export const updateProfile = async (payload: UpdateProfileRequest) => {
   const { data } = await apiClient.put<{ user: UserProfile }>(`/api/v1.1/auth/me`, payload);
+  if ('data' in data) return (data as any).data;
   return data;
 };
 
@@ -97,7 +103,7 @@ export const getSession = async () => {
 
 export const refreshSession = async () => {
   const { data } = await apiClient.post<AuthResponse>(`/api/${API_VERSION}/auth/refresh`);
-  void runFullSync(data?.user);
+  useAuthStore.getState().setHasValidSession(true);
   return data;
 };
 
@@ -108,4 +114,3 @@ export const logoutSession = async () => {
     await clearDb();
   }
 };
-

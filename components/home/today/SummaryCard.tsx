@@ -61,7 +61,7 @@ export function SummaryCard({ income, expense, balance }: SummaryCardProps) {
       )}
       <View style={styles.header}>
         <ThemedText style={[styles.label, { color: colors.textSubtle }]}>
-          Today's Balance
+          Today&apos;s Balance
         </ThemedText>
         <ThemedText
           style={[

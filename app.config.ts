@@ -1,10 +1,10 @@
-import { ExpoConfig, ConfigContext } from 'expo/config';
+import { ConfigContext, ExpoConfig } from 'expo/config';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
     ...config,
     name: "Blipzo",
     slug: "blipzo-app",
-    version: "1.0.0",
+    version: "1.1.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: process.env.MB_APP_URI_SCHEME || "blipzoapp",
@@ -38,6 +38,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
                 backgroundColor: "#F0F7FF"
             }
         ],
-        "expo-sqlite"
+        "expo-sqlite",
+        "expo-secure-store"
     ]
 });
