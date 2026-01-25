@@ -1,6 +1,6 @@
-import React from 'react';
-import { ActivityIndicator, StyleSheet, View, Text } from 'react-native';
 import { useAppTheme } from '@/context/ThemeContext';
+import React from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../themed-text';
 
 interface Props {

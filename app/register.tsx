@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -19,9 +19,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { registerComplete, registerInit, registerVerify } from '@/api/auth';
 import { HomeBackground } from '@/components/home/HomeBackground';
 import { ThemedText } from '@/components/themed-text';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
-import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 
 // Enable animations for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -47,7 +47,7 @@ export default function RegisterScreen() {
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [registrationToken, setRegistrationToken] = useState('');
-  
+
   const [blockingState, setBlockingState] = useState<BlockingState>('idle');
   const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
@@ -58,7 +58,7 @@ export default function RegisterScreen() {
   const [showEmailValidation, setShowEmailValidation] = useState(false);
 
   // OTP Input Refs
-  const otpRefs = useRef<Array<TextInput | null>>([]);
+  const otpRefs = useRef<(TextInput | null)[]>([]);
 
   // Resend Timer
   const [resendTimer, setResendTimer] = useState(0);
@@ -93,15 +93,7 @@ export default function RegisterScreen() {
     }
   }, [step]);
 
-  // Auto-verify when all 6 digits are entered
-  useEffect(() => {
-    if (step === 'otp' && otpDigits.every(digit => digit !== '')) {
-      const otp = otpDigits.join('');
-      if (otp.length === 6 && !verifyMutation.isPending) {
-        verifyMutation.mutate({ email: email.trim(), otp });
-      }
-    }
-  }, [otpDigits, step]);
+
 
   // Email validation with debounce
   useEffect(() => {
@@ -124,8 +116,8 @@ export default function RegisterScreen() {
   };
 
   const isEmailStepValid = isValidEmail(email);
-  
-  const isDetailsStepValid = 
+
+  const isDetailsStepValid =
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
     password.trim().length >= 6;
@@ -150,8 +142,8 @@ export default function RegisterScreen() {
     },
     onError: (error: any) => {
       setBlockingState('error');
-      const msg = error?.response?.data?.error?.message 
-        || error?.response?.data?.message 
+      const msg = error?.response?.data?.error?.message
+        || error?.response?.data?.message
         || 'Unable to send verification code.';
       setBlockingMessage(msg);
     },
@@ -177,11 +169,11 @@ export default function RegisterScreen() {
     },
     onError: (error: any) => {
       setBlockingState('error');
-      const msg = error?.response?.data?.error?.message 
-        || error?.response?.data?.message 
+      const msg = error?.response?.data?.error?.message
+        || error?.response?.data?.message
         || 'Invalid verification code.';
       setBlockingMessage(msg);
-      
+
       // Clear OTP inputs on error for easy re-entry
       setTimeout(() => {
         setOtpDigits(['', '', '', '', '', '']);
@@ -213,14 +205,24 @@ export default function RegisterScreen() {
     },
     onError: (error: any) => {
       setBlockingState('error');
-      const msg = error?.response?.data?.error?.message 
-        || error?.response?.data?.message 
+      const msg = error?.response?.data?.error?.message
+        || error?.response?.data?.message
         || 'Failed to create account.';
       setBlockingMessage(msg);
     },
   });
 
   const isLoading = initMutation.isPending || verifyMutation.isPending || completeMutation.isPending;
+
+  // Auto-verify when all 6 digits are entered
+  useEffect(() => {
+    if (step === 'otp' && otpDigits.every(digit => digit !== '')) {
+      const otp = otpDigits.join('');
+      if (otp.length === 6 && !verifyMutation.isPending) {
+        verifyMutation.mutate({ email: email.trim(), otp });
+      }
+    }
+  }, [otpDigits, step, email, verifyMutation]);
 
   // Handlers
   const handleEmailSubmit = () => {
@@ -236,7 +238,7 @@ export default function RegisterScreen() {
   const handleOtpChange = (value: string, index: number) => {
     // Only allow numbers
     const numericValue = value.replace(/[^0-9]/g, '');
-    
+
     if (numericValue.length === 0) {
       // Clear current box
       const newOtpDigits = [...otpDigits];
@@ -244,12 +246,12 @@ export default function RegisterScreen() {
       setOtpDigits(newOtpDigits);
       return;
     }
-    
+
     if (numericValue.length > 1) {
       // Handle paste or multiple characters
       const digits = numericValue.slice(0, 6).split('');
       const newOtpDigits = [...otpDigits];
-      
+
       // Fill from current index
       digits.forEach((digit, i) => {
         if (index + i < 6) {
@@ -257,7 +259,7 @@ export default function RegisterScreen() {
         }
       });
       setOtpDigits(newOtpDigits);
-      
+
       // Focus last filled box or last box
       const nextIndex = Math.min(index + digits.length - 1, 5);
       otpRefs.current[nextIndex]?.focus();
@@ -266,7 +268,7 @@ export default function RegisterScreen() {
       const newOtpDigits = [...otpDigits];
       newOtpDigits[index] = numericValue;
       setOtpDigits(newOtpDigits);
-      
+
       // Auto-advance to next box
       if (index < 5) {
         otpRefs.current[index + 1]?.focus();
@@ -285,7 +287,7 @@ export default function RegisterScreen() {
 
   const handleResendOtp = () => {
     if (!canResend) return;
-    
+
     setOtpDigits(['', '', '', '', '', '']);
     setErrorMessage(null);
     initMutation.mutate({ email: email.trim() });
@@ -395,7 +397,7 @@ export default function RegisterScreen() {
                       style={[styles.input, { color: colors.textMain }]}
                     />
                   </View>
-                  
+
                   {/* Email Validation Feedback - Error Only */}
                   {showEmailValidation && email.trim() !== '' && !isEmailStepValid && (
                     <View style={styles.validationFeedback}>
@@ -416,7 +418,7 @@ export default function RegisterScreen() {
                     <ThemedText style={[styles.label, { color: colors.textSubtle }]}>
                       Enter 6-Digit Code
                     </ThemedText>
-                    
+
                     {/* OTP Input Boxes */}
                     <View style={styles.otpContainer}>
                       {otpDigits.map((digit, index) => (
@@ -448,17 +450,17 @@ export default function RegisterScreen() {
                   {/* Resend Link */}
                   <View style={styles.resendContainer}>
                     <ThemedText style={[styles.resendText, { color: colors.textMuted }]}>
-                      Didn't receive the code?{' '}
+                      Didn&apos;t receive the code?{' '}
                     </ThemedText>
-                    <Pressable 
-                      onPress={handleResendOtp} 
+                    <Pressable
+                      onPress={handleResendOtp}
                       disabled={!canResend || isLoading}
                       style={{ padding: 4 }}
                     >
-                      <ThemedText 
+                      <ThemedText
                         style={[
-                          styles.linkText, 
-                          { 
+                          styles.linkText,
+                          {
                             color: canResend ? accentColor : colors.textMuted,
                             opacity: canResend ? 1 : 0.6
                           }
@@ -503,9 +505,9 @@ export default function RegisterScreen() {
                   <View style={styles.fieldGroup}>
                     <View style={styles.labelRow}>
                       <ThemedText style={[styles.label, { color: colors.textSubtle }]}>Password</ThemedText>
-                      <ThemedText 
+                      <ThemedText
                         style={[
-                          styles.charCounter, 
+                          styles.charCounter,
                           { color: password.length >= 6 ? '#27ae60' : colors.textMuted }
                         ]}
                       >
@@ -532,30 +534,30 @@ export default function RegisterScreen() {
                 <Pressable
                   onPress={step === 'email' ? handleEmailSubmit : handleDetailsSubmit}
                   disabled={
-                    isLoading || 
+                    isLoading ||
                     (step === 'email' && !isEmailStepValid) ||
                     (step === 'details' && !isDetailsStepValid)
                   }
-                   style={({ pressed }) => [
-                     styles.primaryButton,
-                     { 
-                       backgroundColor: accentColor, 
-                       shadowColor: accentColor,
-                       opacity: (
-                         isLoading || 
-                         (step === 'email' && !isEmailStepValid) ||
-                         (step === 'details' && !isDetailsStepValid)
-                       ) ? 0.5 : 1
-                     },
-                     pressed && styles.buttonPressed,
-                   ]}>
-                     <View style={styles.btnContent}>
-                       <ThemedText style={styles.primaryButtonText}>
-                         {step === 'details' ? 'Complete Sign Up' : 'Continue'}
-                       </ThemedText>
-                       <MaterialIcons name="arrow-forward" size={18} color="#fff" />
-                     </View>
-                 </Pressable>
+                  style={({ pressed }) => [
+                    styles.primaryButton,
+                    {
+                      backgroundColor: accentColor,
+                      shadowColor: accentColor,
+                      opacity: (
+                        isLoading ||
+                        (step === 'email' && !isEmailStepValid) ||
+                        (step === 'details' && !isDetailsStepValid)
+                      ) ? 0.5 : 1
+                    },
+                    pressed && styles.buttonPressed,
+                  ]}>
+                  <View style={styles.btnContent}>
+                    <ThemedText style={styles.primaryButtonText}>
+                      {step === 'details' ? 'Complete Sign Up' : 'Continue'}
+                    </ThemedText>
+                    <MaterialIcons name="arrow-forward" size={18} color="#fff" />
+                  </View>
+                </Pressable>
               )}
 
             </View>
@@ -575,10 +577,10 @@ export default function RegisterScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-      
-      <BlockingModal 
-        state={blockingState} 
-        message={blockingMessage} 
+
+      <BlockingModal
+        state={blockingState}
+        message={blockingMessage}
         onClose={() => setBlockingState('idle')}
       />
     </HomeBackground>

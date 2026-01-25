@@ -1,3 +1,6 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import dayjs from 'dayjs';
 import React, { useState } from 'react';
 import {
   Modal,
@@ -5,12 +8,8 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import dayjs from 'dayjs';
 
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
@@ -24,7 +23,7 @@ interface Props {
 
 export function FilterControls({ filters, categories, onChange }: Props) {
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
-  const { colors, resolvedTheme } = useAppTheme();
+  const { colors } = useAppTheme();
 
   // Helper to update a single field
   const update = (overrides: Partial<AllFilters>) => onChange({ ...filters, ...overrides });
@@ -110,10 +109,10 @@ export function FilterControls({ filters, categories, onChange }: Props) {
             <View style={styles.modalHeader}>
               <ThemedText type="subtitle" style={styles.modalTitle}>Select Category</ThemedText>
               <Pressable onPress={() => setIsCatModalOpen(false)}>
-                 <MaterialIcons name="close" size={24} color={colors.textMuted} />
+                <MaterialIcons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
-            
+
             <ScrollView contentContainerStyle={styles.modalList}>
               <Pressable
                 style={styles.modalItem}
@@ -145,13 +144,13 @@ export function FilterControls({ filters, categories, onChange }: Props) {
                       styles.tinyBadge,
                       cat.type === 'income' ? styles.badgeIncome : styles.badgeExpense,
                     ]}>
-                     <ThemedText
-                       style={[
-                         styles.tinyBadgeText,
-                         cat.type === 'income' ? styles.textIncome : styles.textExpense,
-                       ]}>
-                       {cat.type.charAt(0).toUpperCase()}
-                     </ThemedText>
+                    <ThemedText
+                      style={[
+                        styles.tinyBadgeText,
+                        cat.type === 'income' ? styles.textIncome : styles.textExpense,
+                      ]}>
+                      {cat.type.charAt(0).toUpperCase()}
+                    </ThemedText>
                   </View>
                 </Pressable>
               ))}
@@ -249,24 +248,24 @@ const DateSelector = ({ value, onChange }: { value: string; onChange: (d: string
         Platform.OS === 'ios' ? (
           <Modal transparent animationType="fade">
             <View style={styles.iosBackdrop}>
-               <View
-                 style={[
-                   styles.iosPickerBox,
-                   { backgroundColor: colors.surface1, borderColor: colors.borderSoft },
-                 ]}>
-                 <DateTimePicker
-                   value={dateObj}
-                   mode="date"
-                   display="spinner"
-                   onChange={onMobileChange}
-                   textColor={resolvedTheme === 'dark' ? '#f1f5f9' : '#0f172a'}
-                 />
-                 <Pressable onPress={() => setShow(false)} style={styles.iosDoneBtn}>
-                   <ThemedText style={{color: colors.primaryAccent, fontWeight: 'bold'}}>
-                     Done
-                   </ThemedText>
-                 </Pressable>
-               </View>
+              <View
+                style={[
+                  styles.iosPickerBox,
+                  { backgroundColor: colors.surface1, borderColor: colors.borderSoft },
+                ]}>
+                <DateTimePicker
+                  value={dateObj}
+                  mode="date"
+                  display="spinner"
+                  onChange={onMobileChange}
+                  textColor={resolvedTheme === 'dark' ? '#f1f5f9' : '#0f172a'}
+                />
+                <Pressable onPress={() => setShow(false)} style={styles.iosDoneBtn}>
+                  <ThemedText style={{ color: colors.primaryAccent, fontWeight: 'bold' }}>
+                    Done
+                  </ThemedText>
+                </Pressable>
+              </View>
             </View>
           </Modal>
         ) : (
@@ -302,7 +301,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   row: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'center' },
-  
+
   // Date Styles
   dateRowSingle: {
     flexDirection: 'row',
@@ -350,7 +349,7 @@ const styles = StyleSheet.create({
   },
   pillText: { fontSize: 13, fontWeight: '500' },
   pillTextActive: { color: '#fff' },
-  
+
   // Dropdown Styles
   dropdownTrigger: {
     flexDirection: 'row',

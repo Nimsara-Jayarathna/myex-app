@@ -1,34 +1,34 @@
-import dayjs from 'dayjs';
+import { useNavigation } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import dayjs from 'dayjs';
 import React, { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
+  RefreshControl,
   StyleSheet,
   View,
-  RefreshControl,
 } from 'react-native';
 import Animated from 'react-native-reanimated';
-import { useNavigation } from '@react-navigation/native';
 
 import { deleteTransaction, getTransactionsFiltered, type TransactionFilters } from '@/api/transactions';
-import { ThemedText } from '@/components/themed-text';
-import { useAppTheme } from '@/context/ThemeContext';
-import { useAuth } from '@/hooks/useAuth';
-import { useOffline } from '@/context/OfflineContext';
-import type { Transaction } from '@/types';
-import { TransactionRow } from '@/components/home/TransactionRow';
-import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
-import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
-import { deleteTransactionByLocalId, getLocalTransactionsByDate, initDb, type LocalTransactionRow } from '@/utils/local-db';
+import { HomeContent } from '@/components/home/layout/HomeContent';
+import { HomeStickyHeader } from '@/components/home/layout/HomeStickyHeader';
 import {
   HOME_BOTTOM_BAR_CLEARANCE,
   HOME_LIST_ITEM_GAP,
   HOME_STICKY_HEADER_COLLAPSED_HEIGHT,
   HOME_STICKY_HEADER_EXPANDED_HEIGHT,
 } from '@/components/home/layout/spacing';
-import { HomeContent } from '@/components/home/layout/HomeContent';
-import { HomeStickyHeader } from '@/components/home/layout/HomeStickyHeader';
+import { TransactionRow } from '@/components/home/TransactionRow';
+import { ThemedText } from '@/components/themed-text';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+import { useOffline } from '@/context/OfflineContext';
+import { useAppTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/hooks/useAuth';
+import type { Transaction } from '@/types';
+// eslint-disable-next-line import/no-unresolved
+import { deleteTransactionByLocalId, getLocalTransactionsByDate, initDb, type LocalTransactionRow } from '@/utils/local-db';
 
 const transactionKey = ['transactions'];
 
@@ -39,19 +39,18 @@ export default function TodayScreen() {
   const queryClient = useQueryClient();
   const navigation = useNavigation();
   const todayDate = dayjs().format('YYYY-MM-DD');
-  
+
   // PRECISION MEASUREMENTS
-  const [listLayoutHeight, setListLayoutHeight] = useState(0); 
-  const [contentHeight, setContentHeight] = useState(0); 
+  const [listLayoutHeight, setListLayoutHeight] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
   const [openNoteId, setOpenNoteId] = useState<string | null>(null);
-  
+
   const [blockingState, setBlockingState] = useState<BlockingState>('idle');
   const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
   const {
     data: todayData,
     isLoading,
-    isError,
     refetch,
     isRefetching
   } = useQuery({
@@ -84,7 +83,7 @@ export default function TodayScreen() {
       const items = localRows ?? [];
       let inc = 0;
       let exp = 0;
-      items.forEach(item => {
+      items.forEach((item: any) => {
         if (item.type === 'income') inc += item.amount;
         else if (item.type === 'expense') exp += item.amount;
       });
@@ -137,24 +136,24 @@ export default function TodayScreen() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteTransaction(id),
     onMutate: () => {
-        setBlockingState('loading');
-        setBlockingMessage('Deleting transaction...');
+      setBlockingState('loading');
+      setBlockingMessage('Deleting transaction...');
     },
     onSuccess: () => {
-        setBlockingState('success');
-        setBlockingMessage('Deleted!');
-        setTimeout(() => {
-            setBlockingState('idle');
-            setBlockingMessage(undefined);
-            queryClient.invalidateQueries({ queryKey: ['transactions'] });
-        }, 1500);
+      setBlockingState('success');
+      setBlockingMessage('Deleted!');
+      setTimeout(() => {
+        setBlockingState('idle');
+        setBlockingMessage(undefined);
+        queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      }, 1500);
     },
     onError: (error: any) => {
-        setBlockingState('error');
-        const msg = error?.response?.data?.error?.message 
-            || error?.response?.data?.message 
-            || 'Failed to delete transaction.';
-        setBlockingMessage(msg);
+      setBlockingState('error');
+      const msg = error?.response?.data?.error?.message
+        || error?.response?.data?.message
+        || 'Failed to delete transaction.';
+      setBlockingMessage(msg);
     },
   });
 
@@ -167,13 +166,13 @@ export default function TodayScreen() {
       await deleteTransactionByLocalId(id);
     },
     onSuccess: () => {
-       setBlockingState('success');
-       setBlockingMessage('Deleted!');
-       setTimeout(() => {
-          setBlockingState('idle');
-          setBlockingMessage(undefined);
-          refetchLocal();
-       }, 1000);
+      setBlockingState('success');
+      setBlockingMessage('Deleted!');
+      setTimeout(() => {
+        setBlockingState('idle');
+        setBlockingMessage(undefined);
+        refetchLocal();
+      }, 1000);
     },
   });
 
@@ -199,13 +198,13 @@ export default function TodayScreen() {
 
   return (
     <HomeContent bleedBottom>
-      <HomeStickyHeader 
-        variant="today" 
-        income={income} 
-        expense={expense} 
+      <HomeStickyHeader
+        variant="today"
+        income={income}
+        expense={expense}
         balance={balance}
         // MASTER SWITCH: Prevents halfway overlap in Case 2
-        disableTransition={!enableTransition} 
+        disableTransition={!enableTransition}
       >
         {({ onScroll, contentContainerStyle }) => (
           <Pressable style={styles.listWrapper} onPress={() => setOpenNoteId(null)}>
@@ -214,12 +213,12 @@ export default function TodayScreen() {
               keyExtractor={(item: any) =>
                 item.localId ?? item._id ?? item.id ?? Math.random().toString()
               }
-              
+
               // Apply Threshold Logic
               scrollEnabled={canScroll}
               onScroll={enableTransition ? onScroll : undefined}
               scrollEventThrottle={16}
-              
+
               contentContainerStyle={[
                 styles.listContent,
                 contentContainerStyle,
@@ -235,11 +234,11 @@ export default function TodayScreen() {
                   tintColor={colors.primaryAccent}
                 />
               }
-              
+
               // Measurement Hooks
               onLayout={(event) => setListLayoutHeight(event.nativeEvent.layout.height)}
               onContentSizeChange={(_, height) => setContentHeight(height)}
-              
+
               ListEmptyComponent={renderEmptyState}
               renderItem={({ item }) => {
                 if (offlineMode) {
@@ -289,12 +288,12 @@ export default function TodayScreen() {
           </Pressable>
         )}
       </HomeStickyHeader>
-      <BlockingModal 
-          state={blockingState} 
-          message={blockingMessage} 
-          onClose={() => setBlockingState('idle')}
-        />
-        {(offlineMode ? isLocalLoading : isLoading) && <LoadingOverlay />}
+      <BlockingModal
+        state={blockingState}
+        message={blockingMessage}
+        onClose={() => setBlockingState('idle')}
+      />
+      {(offlineMode ? isLocalLoading : isLoading) && <LoadingOverlay />}
     </HomeContent>
   );
 }

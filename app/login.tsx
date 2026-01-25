@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -19,9 +19,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { login } from '@/api/auth';
 import { HomeBackground } from '@/components/home/HomeBackground';
 import { ThemedText } from '@/components/themed-text';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
-import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import { logDebug, logError } from '@/utils/logger';
 
 // Enable LayoutAnimation on Android
@@ -68,8 +68,8 @@ export default function LoginScreen() {
     onError: (error: any, variables, context) => {
       logError('Login mutation failed', { error, variables, context });
       setBlockingState('error');
-      const msg = error?.response?.data?.error?.message 
-        || error?.response?.data?.message 
+      const msg = error?.response?.data?.error?.message
+        || error?.response?.data?.message
         || 'Invalid email or password';
       setBlockingMessage(msg);
     },
@@ -98,7 +98,7 @@ export default function LoginScreen() {
   const isEmailValid = isValidEmail(email);
   const isFormValid = isEmailValid && password.trim().length > 0;
 
-  const isLoading = loginMutation.isPending;
+
 
   const handleSubmit = () => {
     if (!email.trim() || !password.trim()) {
@@ -126,7 +126,7 @@ export default function LoginScreen() {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-  
+
               {/* --- Header Section --- */}
               <View style={styles.header}>
                 <View style={[styles.logoCircle, { backgroundColor: accentColor, shadowColor: accentColor }]}>
@@ -139,10 +139,10 @@ export default function LoginScreen() {
                   Sign in to continue managing your finances.
                 </ThemedText>
               </View>
-  
+
               {/* --- Form Section --- */}
               <View style={[styles.card, { backgroundColor: colors.surface1 }]}>
-  
+
                 {/* Error Banner */}
                 {errorMessage && (
                   <View style={[styles.errorBanner, { backgroundColor: colors.surface2 }]}>
@@ -152,7 +152,7 @@ export default function LoginScreen() {
                     </ThemedText>
                   </View>
                 )}
-  
+
                 {/* Email Input */}
                 <View style={styles.inputContainer}>
                   <ThemedText style={[styles.label, { color: colors.textSubtle }]}>
@@ -183,7 +183,7 @@ export default function LoginScreen() {
                       style={[styles.input, { color: colors.textMain }]}
                     />
                   </View>
-                  
+
                   {/* Email Validation Feedback - Error Only */}
                   {showEmailValidation && email.trim() !== '' && !isEmailValid && (
                     <View style={styles.validationFeedback}>
@@ -196,7 +196,7 @@ export default function LoginScreen() {
                     </View>
                   )}
                 </View>
-  
+
                 {/* Password Input */}
                 <View style={styles.inputContainer}>
                   <ThemedText style={[styles.label, { color: colors.textSubtle }]}>
@@ -229,28 +229,28 @@ export default function LoginScreen() {
                     </ThemedText>
                   </Pressable>
                 </View>
-  
+
                 {/* Submit Button */}
                 <Pressable
                   onPress={handleSubmit}
                   disabled={blockingState !== 'idle' || !isFormValid}
-                style={({ pressed }) => [
+                  style={({ pressed }) => [
                     styles.primaryButton,
-                    { 
-                      backgroundColor: accentColor, 
+                    {
+                      backgroundColor: accentColor,
                       shadowColor: accentColor,
                       opacity: (blockingState !== 'idle' || !isFormValid) ? 0.5 : 1
                     },
                     pressed && styles.buttonPressed,
                   ]}>
-                    <View style={styles.btnContent}>
-                      <ThemedText style={styles.primaryButtonText}>Log In</ThemedText>
-                      <MaterialIcons name="arrow-forward" size={18} color="#fff" />
-                    </View>
+                  <View style={styles.btnContent}>
+                    <ThemedText style={styles.primaryButtonText}>Log In</ThemedText>
+                    <MaterialIcons name="arrow-forward" size={18} color="#fff" />
+                  </View>
                 </Pressable>
-  
+
               </View>
-  
+
               {/* --- Footer Section --- */}
               <View style={styles.footer}>
                 <ThemedText style={styles.footerText}>New to Blipzo?</ThemedText>
@@ -260,14 +260,14 @@ export default function LoginScreen() {
                   </ThemedText>
                 </Pressable>
               </View>
-  
+
             </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
       </HomeBackground>
-      <BlockingModal 
-        state={blockingState} 
-        message={blockingMessage} 
+      <BlockingModal
+        state={blockingState}
+        message={blockingMessage}
         onClose={() => setBlockingState('idle')}
       />
     </>

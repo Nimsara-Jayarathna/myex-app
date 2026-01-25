@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMutation } from '@tanstack/react-query';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     KeyboardAvoidingView,
     Modal,
@@ -18,8 +18,8 @@ import {
     changeEmailVerifyCurrent,
 } from '@/api/auth';
 import { ThemedText } from '@/components/themed-text';
-import { useAppTheme } from '@/context/ThemeContext';
 import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
+import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
 
 interface ChangeEmailSheetProps {
@@ -43,14 +43,14 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
     const [showEmailValidation, setShowEmailValidation] = useState(false);
 
     // OTP Input Refs
-    const currentOtpRefs = useRef<Array<TextInput | null>>([]);
-    const newOtpRefs = useRef<Array<TextInput | null>>([]);
+    const currentOtpRefs = useRef<(TextInput | null)[]>([]);
+    const newOtpRefs = useRef<(TextInput | null)[]>([]);
 
     // Temporary tokens
     const [changeToken, setChangeToken] = useState('');
 
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    
+
     const [blockingState, setBlockingState] = useState<BlockingState>('idle');
     const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
@@ -104,24 +104,7 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
         }
     }, [step]);
 
-    // Auto-verify when all 6 digits are entered
-    useEffect(() => {
-        if (step === 'verify-current' && currentOtpDigits.every(digit => digit !== '')) {
-            const otp = currentOtpDigits.join('');
-            if (otp.length === 6 && !verifyCurrentMutation.isPending) {
-                verifyCurrentMutation.mutate({ otp });
-            }
-        }
-    }, [currentOtpDigits, step]);
 
-    useEffect(() => {
-        if (step === 'confirm-new' && newOtpDigits.every(digit => digit !== '')) {
-            const otp = newOtpDigits.join('');
-            if (otp.length === 6 && !confirmNewMutation.isPending) {
-                confirmNewMutation.mutate({ otp });
-            }
-        }
-    }, [newOtpDigits, step]);
 
     // Validation helpers
     const isValidEmail = (email: string): boolean => {
@@ -137,14 +120,14 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
         const otpDigits = isCurrentEmail ? currentOtpDigits : newOtpDigits;
         const setOtpDigits = isCurrentEmail ? setCurrentOtpDigits : setNewOtpDigits;
         const otpRefs = isCurrentEmail ? currentOtpRefs : newOtpRefs;
-        
+
         if (numericValue.length === 0) {
             const newOtpDigits = [...otpDigits];
             newOtpDigits[index] = '';
             setOtpDigits(newOtpDigits);
             return;
         }
-        
+
         if (numericValue.length > 1) {
             // Handle paste
             const digits = numericValue.slice(0, 6).split('');
@@ -171,7 +154,7 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
     const handleOtpKeyPress = (e: any, index: number, isCurrentEmail: boolean) => {
         const otpDigits = isCurrentEmail ? currentOtpDigits : newOtpDigits;
         const otpRefs = isCurrentEmail ? currentOtpRefs : newOtpRefs;
-        
+
         if (e.nativeEvent.key === 'Backspace' && !otpDigits[index] && index > 0) {
             otpRefs.current[index - 1]?.focus();
         }
@@ -197,8 +180,8 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
         },
         onError: (error: any) => {
             setBlockingState('error');
-            const msg = error?.response?.data?.error?.message 
-                || error?.response?.data?.message 
+            const msg = error?.response?.data?.error?.message
+                || error?.response?.data?.message
                 || 'Failed to send code.';
             setBlockingMessage(msg);
         }
@@ -223,11 +206,11 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
         },
         onError: (error: any) => {
             setBlockingState('error');
-            const msg = error?.response?.data?.error?.message 
-                || error?.response?.data?.message 
+            const msg = error?.response?.data?.error?.message
+                || error?.response?.data?.message
                 || 'Invalid code.';
             setBlockingMessage(msg);
-            
+
             // Clear OTP on error
             setTimeout(() => {
                 setCurrentOtpDigits(['', '', '', '', '', '']);
@@ -257,8 +240,8 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
         },
         onError: (error: any) => {
             setBlockingState('error');
-            const msg = error?.response?.data?.error?.message 
-                ||error?.response?.data?.message 
+            const msg = error?.response?.data?.error?.message
+                || error?.response?.data?.message
                 || 'Failed to send code. Email might be in use.';
             setBlockingMessage(msg);
         }
@@ -266,7 +249,7 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
 
     const confirmNewMutation = useMutation({
         mutationFn: changeEmailConfirm,
-         onMutate: () => {
+        onMutate: () => {
             setBlockingState('loading');
             setBlockingMessage('Updating email...');
         },
@@ -286,11 +269,11 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
         },
         onError: (error: any) => {
             setBlockingState('error');
-            const msg = error?.response?.data?.error?.message 
-                || error?.response?.data?.message 
+            const msg = error?.response?.data?.error?.message
+                || error?.response?.data?.message
                 || 'Invalid code.';
             setBlockingMessage(msg);
-            
+
             // Clear OTP on error
             setTimeout(() => {
                 setNewOtpDigits(['', '', '', '', '', '']);
@@ -301,6 +284,25 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
             }, 2000);
         }
     });
+
+    // Auto-verify when all 6 digits are entered
+    useEffect(() => {
+        if (step === 'verify-current' && currentOtpDigits.every(digit => digit !== '')) {
+            const otp = currentOtpDigits.join('');
+            if (otp.length === 6 && !verifyCurrentMutation.isPending) {
+                verifyCurrentMutation.mutate({ otp });
+            }
+        }
+    }, [currentOtpDigits, step, verifyCurrentMutation]);
+
+    useEffect(() => {
+        if (step === 'confirm-new' && newOtpDigits.every(digit => digit !== '')) {
+            const otp = newOtpDigits.join('');
+            if (otp.length === 6 && !confirmNewMutation.isPending) {
+                confirmNewMutation.mutate({ otp });
+            }
+        }
+    }, [newOtpDigits, step, confirmNewMutation]);
 
     // --- Handlers ---
 
@@ -320,7 +322,7 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
 
     const handleResend = () => {
         if (!canResend) return;
-        
+
         if (step === 'verify-current') {
             setCurrentOtpDigits(['', '', '', '', '', '']);
             initMutation.mutate();
@@ -369,7 +371,7 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
                                 <ThemedText style={[styles.label, { color: colors.textSubtle }]}>
                                     Enter 6-Digit Code (Current Email)
                                 </ThemedText>
-                                
+
                                 {/* OTP Input Boxes */}
                                 <View style={styles.otpContainer}>
                                     {currentOtpDigits.map((digit, index) => (
@@ -401,17 +403,17 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
                             {/* Resend Link */}
                             <View style={styles.resendContainer}>
                                 <ThemedText style={[styles.resendText, { color: colors.textMuted }]}>
-                                    Didn't receive the code?{' '}
+                                    Didn&apos;t receive the code?{' '}
                                 </ThemedText>
-                                <Pressable 
-                                    onPress={handleResend} 
+                                <Pressable
+                                    onPress={handleResend}
                                     disabled={!canResend}
                                     style={{ padding: 4 }}
                                 >
-                                    <ThemedText 
+                                    <ThemedText
                                         style={[
-                                            styles.linkText, 
-                                            { 
+                                            styles.linkText,
+                                            {
                                                 color: canResend ? colors.primaryAccent : colors.textMuted,
                                                 opacity: canResend ? 1 : 0.6
                                             }
@@ -438,7 +440,7 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
                                 autoCapitalize="none"
                                 style={[styles.input, { color: colors.textMain, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
                             />
-                            
+
                             {/* Email Validation Feedback */}
                             {showEmailValidation && newEmail.trim() !== '' && !isEmailValid && (
                                 <View style={styles.validationFeedback}>
@@ -459,7 +461,7 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
                                 <ThemedText style={[styles.label, { color: colors.textSubtle }]}>
                                     Enter 6-Digit Code (New Email)
                                 </ThemedText>
-                                
+
                                 {/* OTP Input Boxes */}
                                 <View style={styles.otpContainer}>
                                     {newOtpDigits.map((digit, index) => (
@@ -491,17 +493,17 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
                             {/* Resend Link */}
                             <View style={styles.resendContainer}>
                                 <ThemedText style={[styles.resendText, { color: colors.textMuted }]}>
-                                    Didn't receive the code?{' '}
+                                    Didn&apos;t receive the code?{' '}
                                 </ThemedText>
-                                <Pressable 
+                                <Pressable
                                     onPress={handleResend}
                                     disabled={!canResend}
                                     style={{ padding: 4 }}
                                 >
-                                    <ThemedText 
+                                    <ThemedText
                                         style={[
-                                            styles.linkText, 
-                                            { 
+                                            styles.linkText,
+                                            {
                                                 color: canResend ? colors.primaryAccent : colors.textMuted,
                                                 opacity: canResend ? 1 : 0.6
                                             }
@@ -521,7 +523,7 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
                             disabled={step === 'request-new' && !isEmailValid}
                             style={({ pressed }) => [
                                 styles.saveBtn,
-                                { 
+                                {
                                     backgroundColor: colors.primaryAccent,
                                     opacity: (step === 'request-new' && !isEmailValid) ? 0.5 : 1
                                 },
@@ -536,9 +538,9 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
 
                 </View>
             </KeyboardAvoidingView>
-            <BlockingModal 
-                state={blockingState} 
-                message={blockingMessage} 
+            <BlockingModal
+                state={blockingState}
+                message={blockingMessage}
                 onClose={() => setBlockingState('idle')}
             />
         </Modal>

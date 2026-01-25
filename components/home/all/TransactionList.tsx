@@ -1,21 +1,21 @@
 import React from 'react';
 import {
+  SectionList,
   StyleSheet,
   View,
-  SectionList,
   type LayoutChangeEvent,
+  type RefreshControlProps,
   type StyleProp,
   type ViewStyle,
-  type SectionListData, // Added for typing sections
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 
+import { HOME_LIST_ITEM_GAP } from '@/components/home/layout/spacing';
+import { TransactionRow } from '@/components/home/TransactionRow';
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
-import { HOME_LIST_ITEM_GAP } from '@/components/home/layout/spacing';
-import type { Transaction } from '@/types';
 import type { GroupedSection } from '@/hooks/home/useTransactionLogic';
-import { TransactionRow } from '@/components/home/TransactionRow';
+import type { Transaction } from '@/types';
 
 // FIX: Create the animated component with a type cast to preserve Generics
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
@@ -34,7 +34,7 @@ interface Props {
   onLayout?: (event: LayoutChangeEvent) => void;
   onContentSizeChange?: (width: number, height: number) => void;
   scrollEnabled?: boolean;
-  refreshControl?: React.ReactElement;
+  refreshControl?: React.ReactElement<RefreshControlProps>;
 }
 
 export function TransactionList({

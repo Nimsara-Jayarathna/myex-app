@@ -2,12 +2,11 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import {
-  Dimensions,
   Image,
   Platform,
   Pressable,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import Animated, {
   Easing,
@@ -23,7 +22,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
 
-const { width } = Dimensions.get('window');
+
 export default function WelcomeScreen() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
@@ -60,7 +59,7 @@ export default function WelcomeScreen() {
         easing: Easing.out(Easing.back(1)),
       })
     );
-  }, []);
+  }, [fadeDetails, sheetTranslateY, textTranslateY]);
 
   const handleLoginPress = () => router.navigate('/login');
   const handleRegisterPress = () => router.navigate('/register');
@@ -113,7 +112,7 @@ export default function WelcomeScreen() {
             <View style={[styles.sheetHandle, { backgroundColor: colors.surface3 }]} />
 
             <ThemedText style={[styles.welcomeHeader, { color: colors.textMain }]}>
-              Let's get started
+              Let&apos;s get started
             </ThemedText>
             <ThemedText style={[styles.welcomeSub, { color: colors.textMuted }]}>
               Track expenses, set budgets, and achieve your financial goals today.

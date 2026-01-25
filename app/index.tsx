@@ -19,8 +19,8 @@ import { ThemedText } from '@/components/themed-text';
 import { useOffline } from '@/context/OfflineContext';
 import { useAuth } from '@/hooks/useAuth';
 import { isAuthError, isNetworkOrTimeoutError, withRetry } from '@/utils/api-retry';
+// eslint-disable-next-line import/no-unresolved
 import { getLocalProfile, initDb } from '@/utils/local-db';
-import { runFullSync } from '@/utils/sync-service';
 
 const ACCENT_COLOR = '#3498db';
 const SESSION_CACHE_KEY = 'has_valid_session';
@@ -121,15 +121,15 @@ export default function IndexScreen() {
           // This prevents background 'index' logic from interfering with top-level auth flow.
           // We can check if we are still the root path? 
           // For now, rely on safe retry or silent failure.
-          
+
           try {
             await withRetry(() => apiClient.get('/health', { timeout: 5000 }), 2);
             if (!hasNavigatedRef.current) {
-               hasNavigatedRef.current = true;
-               router.replace('/welcome');
+              hasNavigatedRef.current = true;
+              router.replace('/welcome');
             }
           } catch {
-             promptToGoOffline(
+            promptToGoOffline(
               'You need to be online to sign in.',
               async () => {
                 await apiClient.get('/health', { timeout: 5000 });
@@ -225,7 +225,7 @@ export default function IndexScreen() {
 
     setIsBooting(true);
     void checkAuth().finally(() => setIsBooting(false));
-  }, []);
+  }, [setAuth, logout, setHasValidSession, offlineMode, promptToGoOffline, setIsBooting, router, loadingOpacity, logoScale]);
 
   useEffect(() => {
     if (offlineMode && !hasNavigatedRef.current) {

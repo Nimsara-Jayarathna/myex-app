@@ -54,7 +54,7 @@ export const BlockingModal = ({ state, message, onClose }: BlockingModalProps) =
             iconScale.value = 0;
             checkmarkProgress.value = 0;
         }
-    }, [state]);
+    }, [state, checkmarkProgress, iconScale]);
 
     const animatedIconStyle = useAnimatedStyle(() => {
         return {

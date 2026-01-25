@@ -1,7 +1,6 @@
+import { BlurView } from 'expo-blur';
 import React from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
@@ -31,12 +30,12 @@ export function CategoryList({
   onSetDefault,
 }: Props) {
   const { colors, resolvedTheme } = useAppTheme();
-  
+
   // Glassy styling constants (matching SmartFilterHeader/HomeTabBar)
   const isDark = resolvedTheme === 'dark';
   const blurIntensity = isDark ? 40 : 65;
   const androidFallbackOverlay = isDark ? 'rgba(2, 6, 23, 0.7)' : 'rgba(226, 232, 240, 0.6)';
-  const glassBorderColor = Platform.OS === 'android' 
+  const glassBorderColor = Platform.OS === 'android'
     ? (isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)')
     : colors.borderGlass;
 
@@ -47,7 +46,7 @@ export function CategoryList({
   if (data.length === 0) {
     return (
       <View style={[styles.listContainer, { borderColor: glassBorderColor, backgroundColor: colors.surfaceGlassThick }]}>
-         <BlurView
+        <BlurView
           intensity={blurIntensity}
           tint={isDark ? 'dark' : 'light'}
           experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
@@ -88,13 +87,13 @@ export function CategoryList({
           style={[StyleSheet.absoluteFill, { backgroundColor: androidFallbackOverlay }]}
         />
       )}
-      
+
       {/* Content */}
       <View style={styles.contentContainer}>
         {data.map((item, index) => {
           const id = getCategoryId(item);
           const isDefault = id === defaultId;
-          const canDelete = !isDefault; 
+          const canDelete = !isDefault;
           const isDeleting = deletingId === id;
           const isLast = index === data.length - 1;
 

@@ -1,8 +1,8 @@
 import { Tabs, useRouter, useSegments } from 'expo-router';
 import React, { useEffect } from 'react';
-import { Alert } from 'react-native';
+import { Alert , InteractionManager } from 'react-native';
 
-import { InteractionManager } from 'react-native';
+
 
 import { HomeShell } from '@/components/home/layout/HomeShell';
 import { useOffline } from '@/context/OfflineContext';

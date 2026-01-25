@@ -1,5 +1,4 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
@@ -14,10 +13,9 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function ProfileScreen() {
-  const version = Constants.expoConfig?.version ?? '1.1.0';
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const { colors } = useAppTheme();
-  const { offlineMode, capabilities, tryGoOnline, reconnectionState, reconnectionMessage, resetReconnectionState } = useOffline();
+  const { offlineMode, capabilities, tryGoOnline, reconnectionState } = useOffline();
   const router = useRouter();
 
   const [blockingState, setBlockingState] = useState<BlockingState>('idle');

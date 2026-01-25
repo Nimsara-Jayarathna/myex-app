@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import {
-  ActivityIndicator,
   Modal,
   Pressable,
   StyleSheet,
@@ -9,8 +8,8 @@ import {
 
 import { ThemedText } from '@/components/themed-text';
 import { BlockingModal } from '@/components/ui/BlockingModal';
-import { useAppTheme } from '@/context/ThemeContext';
 import { useOffline } from '@/context/OfflineContext';
+import { useAppTheme } from '@/context/ThemeContext';
 
 export const OfflinePromptHost: React.FC = () => {
   const { colors } = useAppTheme();
@@ -34,7 +33,7 @@ export const OfflinePromptHost: React.FC = () => {
       visible={prompt.visible}
       transparent
       animationType="slide"
-      onRequestClose={() => {}}
+      onRequestClose={() => { }}
     >
       <View style={styles.backdrop}>
         <View style={[styles.sheet, { backgroundColor: colors.surface1, borderColor: colors.borderSoft }]}>
@@ -73,7 +72,7 @@ export const OfflinePromptHost: React.FC = () => {
           </View>
         </View>
       </View>
-      
+
       <BlockingModal
         state={promptBlockingState}
         message={promptBlockingMessage}

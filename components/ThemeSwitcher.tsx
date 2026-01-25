@@ -1,6 +1,6 @@
 import { BlurView } from 'expo-blur';
 import React, { useEffect, useState } from 'react';
-import { LayoutChangeEvent, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
@@ -20,7 +20,6 @@ export function ThemeSwitcher() {
   const translateX = useSharedValue(0);
 
   useEffect(() => {
-    const totalOptions = options.length;
     const selectedIndex = options.findIndex(o => o.value === preference);
     if (selectedIndex !== -1 && optionWidth > 0) {
       translateX.value = withSpring(selectedIndex * optionWidth, {
@@ -29,7 +28,7 @@ export function ThemeSwitcher() {
         stiffness: 120,
       });
     }
-  }, [preference, optionWidth]);
+  }, [preference, optionWidth, translateX]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
@@ -88,7 +87,7 @@ export function ThemeSwitcher() {
                       fontWeight: isActive ? '700' : '500',
                       opacity: isActive ? 1 : 0.7,
                       // Z-index to ensure text is above the sliding pill
-                      zIndex: 2, 
+                      zIndex: 2,
                     },
                   ]}>
                   {option.label}

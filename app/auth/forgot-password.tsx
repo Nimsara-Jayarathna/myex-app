@@ -1,10 +1,9 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     KeyboardAvoidingView,
-    LayoutAnimation,
     Platform,
     Pressable,
     ScrollView,
@@ -17,8 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { forgotPassword } from '@/api/auth';
 import { HomeBackground } from '@/components/home/HomeBackground';
 import { ThemedText } from '@/components/themed-text';
-import { useAppTheme } from '@/context/ThemeContext';
 import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
+import { useAppTheme } from '@/context/ThemeContext';
 
 export default function ForgotPasswordScreen() {
     const router = useRouter();
@@ -28,7 +27,7 @@ export default function ForgotPasswordScreen() {
     const [email, setEmail] = useState('');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
-    
+
     const [blockingState, setBlockingState] = useState<BlockingState>('idle');
     const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
@@ -55,7 +54,7 @@ export default function ForgotPasswordScreen() {
                 setBlockingState('idle');
                 setBlockingMessage(undefined);
                 setSuccessMessage('If that email exists, we sent a reset link.');
-                
+
                 // Start 60-second timer after successful send
                 setResendTimer(60);
                 setCanResend(false);
@@ -63,8 +62,8 @@ export default function ForgotPasswordScreen() {
         },
         onError: (error: any) => {
             setBlockingState('error');
-            const msg = error?.response?.data?.error?.message 
-                || error?.response?.data?.message 
+            const msg = error?.response?.data?.error?.message
+                || error?.response?.data?.message
                 || 'Something went wrong.';
             setBlockingMessage(msg);
             // Fallback for non-blocking error display if needed, but modal handles it.
@@ -137,14 +136,14 @@ export default function ForgotPasswordScreen() {
                         {/* Header */}
                         <View style={styles.header}>
                             {/* Back Button */}
-                        <Pressable 
-                            onPress={() => router.back()} 
-                            style={styles.backButton}
-                        >
-                            <MaterialIcons name="arrow-back" size={24} color={colors.textMain} />
-                        </Pressable>
-                        
-                        <ThemedText type="title" style={[styles.title, { color: colors.textMain }]}>
+                            <Pressable
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <MaterialIcons name="arrow-back" size={24} color={colors.textMain} />
+                            </Pressable>
+
+                            <ThemedText type="title" style={[styles.title, { color: colors.textMain }]}>
                                 Reset Password
                             </ThemedText>
                             <ThemedText style={[styles.subtitle, { color: colors.textMuted }]}>
@@ -202,7 +201,7 @@ export default function ForgotPasswordScreen() {
                                         style={[styles.input, { color: colors.textMain }]}
                                     />
                                 </View>
-                                
+
                                 {/* Email Validation Feedback - Error Only */}
                                 {showEmailValidation && email.trim() !== '' && !isEmailValid && (
                                     <View style={styles.validationFeedback}>
@@ -221,19 +220,19 @@ export default function ForgotPasswordScreen() {
                                 disabled={isLoading || !isEmailValid || !canResend}
                                 style={({ pressed }) => [
                                     styles.primaryButton,
-                                    { 
-                                        backgroundColor: accentColor, 
+                                    {
+                                        backgroundColor: accentColor,
                                         shadowColor: accentColor,
                                         opacity: (isLoading || !isEmailValid || !canResend) ? 0.5 : 1
                                     },
                                     pressed && styles.buttonPressed,
                                 ]}>
-                                    <View style={styles.btnContent}>
-                                        <ThemedText style={styles.primaryButtonText}>
-                                            {canResend ? 'Send Reset Link' : `Resend (${resendTimer}s)`}
-                                        </ThemedText>
-                                        <MaterialIcons name="arrow-forward" size={18} color="#fff" />
-                                    </View>
+                                <View style={styles.btnContent}>
+                                    <ThemedText style={styles.primaryButtonText}>
+                                        {canResend ? 'Send Reset Link' : `Resend (${resendTimer}s)`}
+                                    </ThemedText>
+                                    <MaterialIcons name="arrow-forward" size={18} color="#fff" />
+                                </View>
                             </Pressable>
 
 
@@ -241,9 +240,9 @@ export default function ForgotPasswordScreen() {
                     </ScrollView>
                 </KeyboardAvoidingView>
             </SafeAreaView>
-            <BlockingModal 
-                state={blockingState} 
-                message={blockingMessage} 
+            <BlockingModal
+                state={blockingState}
+                message={blockingMessage}
                 onClose={() => setBlockingState('idle')}
             />
         </HomeBackground>
@@ -265,7 +264,7 @@ const styles = StyleSheet.create({
     inputWrapper: { flexDirection: 'row', alignItems: 'center', height: 50, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14 },
     inputIcon: { marginRight: 10 },
     input: { flex: 1, fontSize: 15, height: '100%' },
-    
+
     // Validation Feedback
     validationFeedback: {
         marginTop: 6,
@@ -280,7 +279,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '500',
     },
-    
+
     primaryButton: { height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 8, shadowOpacity: 0.2, elevation: 4 },
     btnContent: { flexDirection: 'row', gap: 8, alignItems: 'center' },
     primaryButtonText: { color: '#fff', fontWeight: '700' },

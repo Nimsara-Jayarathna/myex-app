@@ -13,8 +13,8 @@ import {
 
 import { changePassword } from '@/api/auth';
 import { ThemedText } from '@/components/themed-text';
-import { useAppTheme } from '@/context/ThemeContext';
 import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
+import { useAppTheme } from '@/context/ThemeContext';
 
 interface ChangePasswordSheetProps {
     visible: boolean;
@@ -28,17 +28,17 @@ export function ChangePasswordSheet({ visible, onClose }: ChangePasswordSheetPro
     const [newPassword, setNewPassword] = useState('');
     const [confirmNewPassword, setConfirmNewPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    
+
     const [blockingState, setBlockingState] = useState<BlockingState>('idle');
     const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
     // Validation
     const passwordsMatch = newPassword === confirmNewPassword;
-    const isFormValid = 
-      currentPassword.trim().length > 0 &&
-      newPassword.trim().length >= 6 &&
-      confirmNewPassword.trim().length >= 6 &&
-      passwordsMatch;
+    const isFormValid =
+        currentPassword.trim().length > 0 &&
+        newPassword.trim().length >= 6 &&
+        confirmNewPassword.trim().length >= 6 &&
+        passwordsMatch;
 
     const mutation = useMutation({
         mutationFn: changePassword,
@@ -61,8 +61,8 @@ export function ChangePasswordSheet({ visible, onClose }: ChangePasswordSheetPro
         },
         onError: (error: any) => {
             setBlockingState('error');
-            const msg = error?.response?.data?.error?.message 
-              || 'Failed to change password. Check your current password.';
+            const msg = error?.response?.data?.error?.message
+                || 'Failed to change password. Check your current password.';
             setBlockingMessage(msg);
         },
     });
@@ -121,7 +121,7 @@ export function ChangePasswordSheet({ visible, onClose }: ChangePasswordSheetPro
                     <View style={styles.field}>
                         <View style={styles.labelRow}>
                             <ThemedText style={[styles.label, { color: colors.textSubtle }]}>New Password</ThemedText>
-                            <ThemedText 
+                            <ThemedText
                                 style={[
                                     styles.charCounter,
                                     { color: newPassword.length >= 6 ? '#27ae60' : colors.textMuted }
@@ -145,14 +145,14 @@ export function ChangePasswordSheet({ visible, onClose }: ChangePasswordSheetPro
                             secureTextEntry
                             style={[styles.input, { color: colors.textMain, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
                         />
-                        
+
                         {/* Password match validation */}
                         {confirmNewPassword.length > 0 && !passwordsMatch && (
                             <View style={styles.validationFeedback}>
                                 <View style={styles.validationRow}>
                                     <MaterialIcons name="error-outline" size={16} color="#ef4444" />
                                     <ThemedText style={[styles.validationText, { color: '#ef4444' }]}>
-                                        Passwords don't match
+                                        Passwords don&apos;t match
                                     </ThemedText>
                                 </View>
                             </View>
@@ -164,7 +164,7 @@ export function ChangePasswordSheet({ visible, onClose }: ChangePasswordSheetPro
                         disabled={!isFormValid}
                         style={({ pressed }) => [
                             styles.saveBtn,
-                            { 
+                            {
                                 backgroundColor: colors.primaryAccent,
                                 opacity: !isFormValid ? 0.5 : 1
                             },

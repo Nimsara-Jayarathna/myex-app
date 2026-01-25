@@ -5,12 +5,11 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { getCurrencies, updateUserCurrency } from '@/api/currency';
-import { SectionHeader } from '@/components/home/layout/SectionHeader';
 import { HOME_CONTENT_PADDING_H } from '@/components/home/layout/spacing';
 import { ThemedText } from '@/components/themed-text';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import { useAuthStore } from '@/context/auth-store';
 import { useAppTheme } from '@/context/ThemeContext';
-import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import type { Currency } from '@/types';
 
 export default function CurrencySettingsScreen() {
@@ -18,7 +17,7 @@ export default function CurrencySettingsScreen() {
     const { colors } = useAppTheme();
     const queryClient = useQueryClient();
     const { user, setAuth } = useAuthStore();
-    
+
     const [blockingState, setBlockingState] = useState<BlockingState>('idle');
     const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
 
@@ -40,17 +39,17 @@ export default function CurrencySettingsScreen() {
             // The API reference says: { success: true, message: "...", data: { currency: ... } }
             // So `newCurrency` might be the response wrapper or the currency itself depending on the api function adapter.
             // Assuming the api function returns the data payload or the currency object.
-            
+
             setBlockingState('success');
             setBlockingMessage('Currency updated!'); // or use data.message if available
 
             setTimeout(() => {
                 setBlockingState('idle');
                 setBlockingMessage(undefined);
-                
+
                 // Manually patch local user state
                 if (user) {
-                     const currencyData = (newCurrency as any).data?.currency || newCurrency;
+                    const currencyData = (newCurrency as any).data?.currency || newCurrency;
                     const updatedUser = { ...user, currency: currencyData };
                     // Fix: Type cast to any or use partial update if supported
                     setAuth({ user: updatedUser } as any);
@@ -62,8 +61,8 @@ export default function CurrencySettingsScreen() {
         },
         onError: (error: any) => {
             setBlockingState('error');
-            const msg = error?.response?.data?.error?.message 
-                || error?.response?.data?.message 
+            const msg = error?.response?.data?.error?.message
+                || error?.response?.data?.message
                 || 'Failed to update currency.';
             setBlockingMessage(msg);
         },
@@ -162,10 +161,10 @@ export default function CurrencySettingsScreen() {
                     <ActivityIndicator size="large" color={colors.primaryAccent} />
                 </View>
             )}
-            
-            <BlockingModal 
-                state={blockingState} 
-                message={blockingMessage} 
+
+            <BlockingModal
+                state={blockingState}
+                message={blockingMessage}
                 onClose={() => setBlockingState('idle')}
             />
         </View>

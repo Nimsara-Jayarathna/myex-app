@@ -2,9 +2,11 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
+import * as Haptics from 'expo-haptics';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Dimensions,
   InteractionManager,
   KeyboardAvoidingView,
@@ -16,21 +18,18 @@ import {
   Text,
   TextInput,
   View,
-  Animated,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
 
 import { getCategories } from '@/api/categories';
 import { createTransaction } from '@/api/transactions';
 import { ThemedText } from '@/components/themed-text';
-import { useAuthStore } from '@/context/auth-store';
 import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
+import { useAuthStore } from '@/context/auth-store';
 import { useOffline } from '@/context/OfflineContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import type { Category, Transaction, TransactionInput } from '@/types';
+// eslint-disable-next-line import/no-unresolved
 import { getLocalCategories, initDb, insertPendingTransaction } from '@/utils/local-db';
-import { logError } from '@/utils/logger';
-import { triggerToast } from '@/utils/toast';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_GAP = 8;
@@ -123,7 +122,7 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
         }));
         setCategories(mapped);
         setBlockingState('idle');
-      } catch (error: any) {
+      } catch {
         setBlockingState('error');
         setBlockingMessage('Unable to load categories');
       }
@@ -208,9 +207,11 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
     const decimalIndex = cleaned.indexOf('.');
     if (decimalIndex !== -1 && cleaned.split('.')[1].length > 2) { triggerLimitReached(); return; }
 
-    cleaned.endsWith('.')
-      ? Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      : Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (cleaned.endsWith('.')) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
 
     let final = cleaned;
     if (final.startsWith('.')) final = '0' + final;
