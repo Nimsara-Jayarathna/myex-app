@@ -1,23 +1,20 @@
-import React, { useEffect } from 'react';
-import { Modal, StyleSheet, View, Text, ActivityIndicator, Pressable, Platform } from 'react-native';
+import { useAppTheme } from '@/context/ThemeContext';
+import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withSpring,
-    withTiming,
-    withSequence,
-    ZoomIn,
-    ZoomOut,
-    FadeIn,
-    FadeOut,
     createAnimatedComponent,
     useAnimatedProps,
-    withDelay
+    useAnimatedStyle,
+    useSharedValue,
+    withDelay,
+    withSequence,
+    withSpring,
+    withTiming,
+    ZoomIn
 } from 'react-native-reanimated';
-import { Svg, Path } from 'react-native-svg';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useAppTheme } from '@/context/ThemeContext';
+import { Path, Svg } from 'react-native-svg';
 
 const AnimatedPath = createAnimatedComponent(Path);
 
@@ -43,14 +40,14 @@ export const BlockingModal = ({ state, message, onClose }: BlockingModalProps) =
             // Reset and animate checkmark
             checkmarkProgress.value = 0;
             iconScale.value = withSequence(
-                withTiming(0, { duration: 0 }), 
+                withTiming(0, { duration: 0 }),
                 withSpring(1, { damping: 12, stiffness: 100 })
             );
             checkmarkProgress.value = withDelay(200, withTiming(1, { duration: 800 }));
         } else if (state === 'error') {
             // Pop in with bounce
             iconScale.value = withSequence(
-                withTiming(0, { duration: 0 }), 
+                withTiming(0, { duration: 0 }),
                 withSpring(1, { damping: 8, stiffness: 150 }) // High bounce
             );
         } else {
@@ -78,19 +75,19 @@ export const BlockingModal = ({ state, message, onClose }: BlockingModalProps) =
                 tint={isDark ? 'dark' : 'light'}
                 style={StyleSheet.absoluteFill}
             />
-            
+
             {/* Backdrop pressable for error state only to allow closing if desired, 
                 though usually we want explicit actions or auto-close */}
             {state === 'error' && onClose && (
-               <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+                <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
             )}
 
-            <Animated.View 
-                entering={ZoomIn.springify()} 
+            <Animated.View
+                entering={ZoomIn.springify()}
                 // exiting={ZoomOut} // Removed to prevent "flash" on dismissal
                 style={[
                     styles.content,
-                    { 
+                    {
                         backgroundColor: isDark ? 'rgba(30, 30, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
                         borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
                     }
@@ -131,9 +128,9 @@ export const BlockingModal = ({ state, message, onClose }: BlockingModalProps) =
                 )}
 
                 {state === 'error' && onClose && (
-                    <Pressable 
+                    <Pressable
                         style={({ pressed }) => [
-                            styles.closeButton, 
+                            styles.closeButton,
                             { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' },
                             pressed && { opacity: 0.7 }
                         ]}
@@ -152,7 +149,8 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.2)', // Slight dim even before blur loads/if blur fails
+        // Darker overlay on Android to compensate for potential blur issues
+        backgroundColor: Platform.OS === 'android' ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.2)',
     },
     content: {
         width: '80%',

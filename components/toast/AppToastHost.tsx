@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import Animated, { FadeInUp, FadeOut } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
@@ -10,7 +11,6 @@ const AUTO_HIDE_MS = 1500;
 export function AppToastHost() {
   const { colors, resolvedTheme } = useAppTheme();
   const [toast, setToast] = useState<ToastPayload | null>(null);
-  const opacity = useRef(new Animated.Value(0)).current;
 
   const backgroundColor = useMemo(() => {
     if (colors.surfaceGlassThick) return colors.surfaceGlassThick;
@@ -22,19 +22,10 @@ export function AppToastHost() {
     let timeout: ReturnType<typeof setTimeout> | null = null;
     const unregister = registerToast(payload => {
       setToast(payload);
-      opacity.setValue(0);
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 180,
-        useNativeDriver: true,
-      }).start();
+
       if (timeout) clearTimeout(timeout);
       timeout = setTimeout(() => {
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 180,
-          useNativeDriver: true,
-        }).start(() => setToast(null));
+        setToast(null);
       }, AUTO_HIDE_MS);
     });
 
@@ -42,19 +33,20 @@ export function AppToastHost() {
       if (timeout) clearTimeout(timeout);
       unregister();
     };
-  }, [opacity]);
+  }, []);
 
   if (!toast) return null;
 
   return (
     <View pointerEvents="none" style={styles.root}>
       <Animated.View
+        entering={FadeInUp.springify().damping(20).mass(0.8)}
+        exiting={FadeOut.duration(200)}
         style={[
           styles.toast,
           {
             backgroundColor,
             borderColor,
-            opacity,
           },
         ]}
       >

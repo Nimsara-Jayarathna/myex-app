@@ -1,22 +1,27 @@
-import React, { useEffect, useRef } from 'react';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
+import React, { useEffect } from 'react';
 import {
-  Animated,
-  Easing,
+  Dimensions,
+  Image,
   Platform,
   Pressable,
   StyleSheet,
   View,
-  Dimensions,
-  Image,
 } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
-import { ThemedText } from '@/components/themed-text';
-import { useAuth } from '@/hooks/useAuth';
 import { HomeBackground } from '@/components/home/HomeBackground';
+import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/hooks/useAuth';
 
 const { width } = Dimensions.get('window');
 export default function WelcomeScreen() {
@@ -26,10 +31,10 @@ export default function WelcomeScreen() {
   const accentColor = colors.primaryAccent;
   const appIcon = require('../assets/images/icon.png');
 
-  // Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current; // Opacity for everything
-  const slideUpAnim = useRef(new Animated.Value(50)).current; // For text/logo
-  const sheetSlideAnim = useRef(new Animated.Value(100)).current; // For bottom sheet
+  // Shared Values for Animations
+  const fadeDetails = useSharedValue(0); // For content fade-in
+  const textTranslateY = useSharedValue(50); // For logo/text slide up
+  const sheetTranslateY = useSharedValue(100); // For bottom sheet slide up
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -38,49 +43,47 @@ export default function WelcomeScreen() {
   }, [isAuthenticated, router]);
 
   useEffect(() => {
-    // Staggered Entrance Animation
-    Animated.parallel([
-      // 1. Fade in content
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      // 2. Slide up logo/text
-      Animated.timing(slideUpAnim, {
-        toValue: 0,
-        duration: 800,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      // 3. Slide up bottom sheet (slightly delayed)
-      Animated.timing(sheetSlideAnim, {
-        toValue: 0,
+    // 1. Fade in content
+    fadeDetails.value = withTiming(1, { duration: 800 });
+
+    // 2. Slide up logo/text
+    textTranslateY.value = withTiming(0, {
+      duration: 800,
+      easing: Easing.out(Easing.cubic),
+    });
+
+    // 3. Slide up bottom sheet (delayed)
+    sheetTranslateY.value = withDelay(
+      300,
+      withTiming(0, {
         duration: 600,
-        delay: 300,
-        easing: Easing.out(Easing.back(1)), // Slight bounce effect
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fadeAnim, slideUpAnim, sheetSlideAnim]);
+        easing: Easing.out(Easing.back(1)),
+      })
+    );
+  }, []);
 
   const handleLoginPress = () => router.navigate('/login');
   const handleRegisterPress = () => router.navigate('/register');
+
+  // Animated Styles
+  const topSectionStyle = useAnimatedStyle(() => ({
+    opacity: fadeDetails.value,
+    transform: [{ translateY: textTranslateY.value }],
+  }));
+
+  const sheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: sheetTranslateY.value }],
+  }));
 
   return (
     <View style={styles.container}>
       <HomeBackground showSecondaryGlow={false}>
         <SafeAreaView style={styles.safeArea}>
-          
+
           {/* --- TOP SECTION: BRANDING --- */}
           <View style={styles.topSection}>
-            <Animated.View
-              style={{
-                opacity: fadeAnim,
-                transform: [{ translateY: slideUpAnim }],
-                alignItems: 'center',
-              }}>
-              
+            <Animated.View style={[styles.centerContent, topSectionStyle]}>
+
               {/* Modern Glow Logo */}
               <View style={styles.logoWrapper}>
                 <View style={[styles.logoGlow, { backgroundColor: accentColor, shadowColor: accentColor }]} />
@@ -105,10 +108,10 @@ export default function WelcomeScreen() {
             style={[
               styles.bottomSheet,
               { backgroundColor: colors.surfaceGlassThick, shadowColor: colors.pageFg },
-              { transform: [{ translateY: sheetSlideAnim }] },
+              sheetStyle,
             ]}>
             <View style={[styles.sheetHandle, { backgroundColor: colors.surface3 }]} />
-            
+
             <ThemedText style={[styles.welcomeHeader, { color: colors.textMain }]}>
               Let's get started
             </ThemedText>
@@ -163,7 +166,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
   },
-  
+
   // --- BRANDING STYLES ---
   topSection: {
     flex: 1,
@@ -270,7 +273,7 @@ const styles = StyleSheet.create({
   buttonGroup: {
     gap: 16,
   },
-  
+
   // --- BUTTONS ---
   primaryButton: {
     height: 56,
@@ -297,7 +300,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
+
   secondaryButton: {
     height: 56,
     borderRadius: 18,
@@ -315,5 +318,8 @@ const styles = StyleSheet.create({
   buttonPressed: {
     transform: [{ scale: 0.98 }],
     opacity: 0.9,
+  },
+  centerContent: {
+    alignItems: 'center',
   },
 });
