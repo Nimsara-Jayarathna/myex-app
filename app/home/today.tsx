@@ -19,6 +19,7 @@ import { useOffline } from '@/context/OfflineContext';
 import type { Transaction } from '@/types';
 import { TransactionRow } from '@/components/home/TransactionRow';
 import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 import { deleteTransactionByLocalId, getLocalTransactionsByDate, initDb, type LocalTransactionRow } from '@/utils/local-db';
 import {
   HOME_BOTTOM_BAR_CLEARANCE,
@@ -177,13 +178,6 @@ export default function TodayScreen() {
   });
 
   const renderEmptyState = () => {
-    if (offlineMode ? isLocalLoading : isLoading) {
-      return (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primaryAccent} />
-        </View>
-      );
-    }
     return (
       <View style={styles.center}>
         <ThemedText style={styles.emptyText}>No activity today.</ThemedText>
@@ -300,6 +294,7 @@ export default function TodayScreen() {
           message={blockingMessage} 
           onClose={() => setBlockingState('idle')}
         />
+        {(offlineMode ? isLocalLoading : isLoading) && <LoadingOverlay />}
     </HomeContent>
   );
 }

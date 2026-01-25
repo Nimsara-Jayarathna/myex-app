@@ -25,6 +25,7 @@ import {
 import { AllFiltersSheet } from '@/components/home/all/AllFiltersSheet';
 import { FloatingSummaryButton } from '@/components/home/all/FloatingSummaryButton';
 import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 
 export default function AllTransactionsScreen() {
   const { isAuthenticated } = useAuth();
@@ -201,6 +202,7 @@ export default function AllTransactionsScreen() {
           message={blockingMessage} 
           onClose={() => setBlockingState('idle')}
         />
+        {(isLoading || isFetching) && <LoadingOverlay />}
     </View>
   );
 }
