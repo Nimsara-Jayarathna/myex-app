@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
@@ -47,8 +47,11 @@ export default function AllTransactionsScreen() {
   const [listLayoutHeight, setListLayoutHeight] = useState(0); 
   const [contentHeight, setContentHeight] = useState(0); 
   
+  const [isFilterUpdating, setIsFilterUpdating] = useState(false);
   const [blockingState, setBlockingState] = useState<BlockingState>('idle');
   const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined); 
+
+
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteTransaction(id),
@@ -131,6 +134,12 @@ export default function AllTransactionsScreen() {
     return { canScroll: true, enableTransition: true };
   }, [contentHeight, listLayoutHeight]);
 
+  useEffect(() => {
+    if (!isFetching && isFilterUpdating) {
+      setIsFilterUpdating(false);
+    }
+  }, [isFetching, isFilterUpdating]);
+
   React.useEffect(() => {
     const unsubscribe = navigation.addListener('tabPress', () => {
       if (!offlineMode && isAuthenticated) {
@@ -140,6 +149,10 @@ export default function AllTransactionsScreen() {
     return unsubscribe;
   }, [navigation, offlineMode, isAuthenticated, refetch]);
 
+  // Determine effective blocking state
+  const effectiveBlockingState = blockingState === 'idle' && isFilterUpdating ? 'loading' : blockingState;
+  const effectiveBlockingMessage = blockingState === 'idle' && isFilterUpdating ? 'Updating filters...' : blockingMessage;
+  
   return (
     <View style={{ flex: 1 }}>
       <HomeContent bleedBottom>
@@ -187,6 +200,7 @@ export default function AllTransactionsScreen() {
           categories={categoriesForType}
           onClose={() => setIsFiltersOpen(false)}
           onApply={(nextFilters, nextGrouping) => {
+            setIsFilterUpdating(true);
             setFilters(nextFilters);
             setGrouping(nextGrouping);
           }}
@@ -198,11 +212,11 @@ export default function AllTransactionsScreen() {
         visible={true} 
       />
       <BlockingModal 
-          state={blockingState} 
-          message={blockingMessage} 
+          state={effectiveBlockingState} 
+          message={effectiveBlockingMessage} 
           onClose={() => setBlockingState('idle')}
         />
-        {(isLoading || isFetching) && <LoadingOverlay />}
+        {(isLoading || isFetching) && !isFilterUpdating && <LoadingOverlay />}
     </View>
   );
 }
