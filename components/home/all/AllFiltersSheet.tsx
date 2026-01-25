@@ -89,7 +89,7 @@ export function AllFiltersSheet({
           style={[
             styles.sheet,
             {
-              backgroundColor: colors.surfaceGlassThick,
+              backgroundColor: colors.surface1, // Solid background to show clearly over content
               borderColor: colors.borderGlass,
               shadowColor: colors.textMain,
             },
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   resetButton: {
     paddingHorizontal: 12,

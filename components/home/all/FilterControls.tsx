@@ -33,53 +33,49 @@ export function FilterControls({ filters, categories, onChange }: Props) {
     <View style={styles.container}>
       {/* 1. Date Range with Platform-Specific Pickers */}
       <ControlCard title="Date Range">
-        <View style={styles.dateColumn}>
-          <View style={styles.dateRow}>
-            <ThemedText style={styles.dateLabel}>From</ThemedText>
-            <DateSelector
-              value={filters.startDate}
-              onChange={(d) => update({ startDate: d })}
-            />
-          </View>
-          <View style={styles.dateRow}>
-            <ThemedText style={styles.dateLabel}>To</ThemedText>
-            <DateSelector
-              value={filters.endDate}
-              onChange={(d) => update({ endDate: d })}
-            />
-          </View>
+        <View style={styles.dateRowSingle}>
+          <DateSelector
+            value={filters.startDate}
+            onChange={(d) => update({ startDate: d })}
+          />
+          <MaterialIcons name="arrow-forward" size={16} color={colors.textMuted} />
+          <DateSelector
+            value={filters.endDate}
+            onChange={(d) => update({ endDate: d })}
+          />
         </View>
       </ControlCard>
 
       {/* 2. Type Filter */}
       <ControlCard title="Type">
         <View style={styles.row}>
-          {(['all', 'income', 'expense'] as const).map((t) => (
-            <Pressable
-              key={t}
-              onPress={() => update({ typeFilter: t, categoryFilter: 'all' })}
-              style={[
-                styles.pill,
-                {
-                  backgroundColor: colors.surface1,
-                  borderColor: colors.borderSoft,
-                },
-                filters.typeFilter === t && {
-                  backgroundColor: colors.primaryAccent,
-                  borderColor: colors.primaryAccent,
-                },
-              ]}
-            >
-              <ThemedText
+          {(['all', 'income', 'expense'] as const).map((t) => {
+            const isActive = filters.typeFilter === t;
+            return (
+              <Pressable
+                key={t}
+                onPress={() => update({ typeFilter: t, categoryFilter: 'all' })}
                 style={[
-                  styles.pillText,
-                  { color: colors.textMain },
-                  filters.typeFilter === t && styles.pillTextActive,
-                ]}>
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-              </ThemedText>
-            </Pressable>
-          ))}
+                  styles.pill,
+                  {
+                    backgroundColor: isActive ? colors.primaryAccent : colors.surface2,
+                    borderColor: isActive ? colors.primaryAccent : colors.borderSoft,
+                  },
+                  isActive && {
+                    shadowColor: colors.primaryAccent,
+                  },
+                ]}
+              >
+                <ThemedText
+                  style={[
+                    styles.pillText,
+                    { color: isActive ? '#fff' : colors.textMain },
+                  ]}>
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
         </View>
       </ControlCard>
 
@@ -288,39 +284,31 @@ const DateSelector = ({ value, onChange }: { value: string; onChange: (d: string
 
 
 const styles = StyleSheet.create({
-  container: { gap: 12 },
+  container: { gap: 8 },
   card: {
-    borderRadius: 16,
-    padding: 12,
+    borderRadius: 14,
+    padding: 10,
     borderWidth: 1,
     alignItems: 'center',
     shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowRadius: 8,
     elevation: 2,
   },
   cardTitle: {
-    fontSize: 11,
+    fontSize: 10,
     textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 8,
+    letterSpacing: 0.5,
+    marginBottom: 6,
     fontWeight: '600',
   },
-  row: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
+  row: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'center' },
   
   // Date Styles
-  dateColumn: {
-    width: '100%',
-    gap: 8,
-  },
-  dateRow: {
+  dateRowSingle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  dateLabel: {
-    width: 40,
-    fontSize: 12,
-    fontWeight: '600',
+    gap: 6,
+    width: '100%',
   },
   dateInputWrapper: {
     flex: 1,
