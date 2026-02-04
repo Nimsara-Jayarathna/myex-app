@@ -59,6 +59,7 @@ export default function RegisterScreen() {
 
   // OTP Input Refs
   const otpRefs = useRef<(TextInput | null)[]>([]);
+  const lastSubmittedOtpRef = useRef<string>('');
 
   // Resend Timer
   const [resendTimer, setResendTimer] = useState(0);
@@ -187,6 +188,8 @@ export default function RegisterScreen() {
     },
   });
 
+  const { mutate: verifyOtp, isPending: isVerifyPending } = verifyMutation;
+
   const completeMutation = useMutation({
     mutationFn: registerComplete,
     onMutate: () => {
@@ -212,17 +215,29 @@ export default function RegisterScreen() {
     },
   });
 
-  const isLoading = initMutation.isPending || verifyMutation.isPending || completeMutation.isPending;
+  const isLoading = initMutation.isPending || isVerifyPending || completeMutation.isPending;
+
+  useEffect(() => {
+    if (step !== 'otp') {
+      lastSubmittedOtpRef.current = '';
+      return;
+    }
+
+    if (otpDigits.some(digit => digit === '')) {
+      lastSubmittedOtpRef.current = '';
+    }
+  }, [otpDigits, step]);
 
   // Auto-verify when all 6 digits are entered
   useEffect(() => {
     if (step === 'otp' && otpDigits.every(digit => digit !== '')) {
       const otp = otpDigits.join('');
-      if (otp.length === 6 && !verifyMutation.isPending) {
-        verifyMutation.mutate({ email: email.trim(), otp });
+      if (otp.length === 6 && !isVerifyPending && otp !== lastSubmittedOtpRef.current) {
+        lastSubmittedOtpRef.current = otp;
+        verifyOtp({ email: email.trim(), otp });
       }
     }
-  }, [otpDigits, step, email, verifyMutation]);
+  }, [otpDigits, step, email, isVerifyPending, verifyOtp]);
 
   // Handlers
   const handleEmailSubmit = () => {
@@ -290,6 +305,7 @@ export default function RegisterScreen() {
 
     setOtpDigits(['', '', '', '', '', '']);
     setErrorMessage(null);
+    lastSubmittedOtpRef.current = '';
     initMutation.mutate({ email: email.trim() });
   };
 
@@ -297,6 +313,7 @@ export default function RegisterScreen() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setOtpDigits(['', '', '', '', '', '']);
     setErrorMessage(null);
+    lastSubmittedOtpRef.current = '';
     setStep('email');
   };
 
