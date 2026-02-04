@@ -1,4 +1,4 @@
-import { apiClient, apiRequest } from '@/api/client';
+import { API_VERSION, apiClient, apiRequest } from '@/api/client';
 import type { SummaryResponse, Transaction, TransactionInput } from '@/types';
 
 type TransactionApiShape = Transaction & {
@@ -47,7 +47,7 @@ const extractTransactions = (data: TransactionsResponse): TransactionApiShape[] 
 };
 
 export const getTransactions = async () => {
-  const { data } = await apiClient.get<TransactionsResponse>('/api/v1/transactions');
+  const { data } = await apiClient.get<TransactionsResponse>(`/api/${API_VERSION}/transactions`);
   return extractTransactions(data).map(normalizeTransaction);
 };
 
@@ -64,7 +64,7 @@ export interface TransactionFilters {
 
 export const getTransactionsFiltered = async (filters: TransactionFilters = {}) => {
   const { data } = await apiClient.get<TransactionsResponse | PaginatedTransactionsResponse>(
-    '/api/v1/transactions',
+    `/api/${API_VERSION}/transactions`,
     {
       params: {
         ...filters,
@@ -84,7 +84,7 @@ export const createTransaction = async (payload: TransactionInput) => {
   const data = await apiRequest<TransactionApiShape | { transaction: TransactionApiShape }>(
     {
       method: 'post',
-      url: '/api/v1/transactions',
+      url: `/api/${API_VERSION}/transactions`,
       data: payload,
     },
     { userInitiated: true }
@@ -113,7 +113,7 @@ export const deleteTransaction = async (id: string) => {
   await apiRequest(
     {
       method: 'delete',
-      url: `/api/v1/transactions/${id}`,
+      url: `/api/${API_VERSION}/transactions/${id}`,
       headers: {
         'X-Timezone': resolveTimezoneHeader(),
       },
@@ -123,6 +123,6 @@ export const deleteTransaction = async (id: string) => {
 };
 
 export const getTransactionSummary = async () => {
-  const { data } = await apiClient.get<SummaryResponse>('/api/v1/transactions/summary');
+  const { data } = await apiClient.get<SummaryResponse>(`/api/${API_VERSION}/transactions/summary`);
   return data;
 };

@@ -31,6 +31,10 @@ export type LocalProfileRow = {
   categoryLimit?: number | null;
   defaultIncomeCategories?: string[];
   defaultExpenseCategories?: string[];
+  currency_id?: string | null;
+  currency_name?: string | null;
+  currency_code?: string | null;
+  currency_symbol?: string | null;
 };
 
 let db: SQLiteDatabase | null = null;
@@ -134,9 +138,19 @@ export const initDb = async () => {
         updatedAt TEXT NOT NULL,
         categoryLimit INTEGER,
         defaultIncomeCategories TEXT,
-        defaultExpenseCategories TEXT
+        defaultExpenseCategories TEXT,
+        currency_id TEXT,
+        currency_name TEXT,
+        currency_code TEXT,
+        currency_symbol TEXT
       );`
     );
+
+    // Migrations for existing tables
+    try { await run(`ALTER TABLE profile ADD COLUMN currency_id TEXT;`); } catch { }
+    try { await run(`ALTER TABLE profile ADD COLUMN currency_name TEXT;`); } catch { }
+    try { await run(`ALTER TABLE profile ADD COLUMN currency_code TEXT;`); } catch { }
+    try { await run(`ALTER TABLE profile ADD COLUMN currency_symbol TEXT;`); } catch { }
 
     await run(
       `CREATE TABLE IF NOT EXISTS meta (
@@ -267,10 +281,12 @@ export const getLocalCategories = async () => {
 export const upsertProfile = async (profile: LocalProfileRow) => {
   await run(
     `INSERT OR REPLACE INTO profile (
-      id, name, fname, lname, email, createdAt, updatedAt, categoryLimit, defaultIncomeCategories, defaultExpenseCategories
+      id, name, fname, lname, email, createdAt, updatedAt, categoryLimit, defaultIncomeCategories, defaultExpenseCategories,
+      currency_id, currency_name, currency_code, currency_symbol
     ) VALUES (
       ?, ?, NULLIF(?, '${NULL_SENTINEL}'), NULLIF(?, '${NULL_SENTINEL}'), ?, ?, ?,
-      NULLIF(?, '${NULL_SENTINEL}'), NULLIF(?, '${NULL_SENTINEL}'), NULLIF(?, '${NULL_SENTINEL}')
+      NULLIF(?, '${NULL_SENTINEL}'), NULLIF(?, '${NULL_SENTINEL}'), NULLIF(?, '${NULL_SENTINEL}'),
+      NULLIF(?, '${NULL_SENTINEL}'), NULLIF(?, '${NULL_SENTINEL}'), NULLIF(?, '${NULL_SENTINEL}'), NULLIF(?, '${NULL_SENTINEL}')
     )`,
     [
       profile.id,
@@ -287,6 +303,10 @@ export const upsertProfile = async (profile: LocalProfileRow) => {
       profile.defaultExpenseCategories
         ? JSON.stringify(profile.defaultExpenseCategories)
         : NULL_SENTINEL,
+      toNullableParam(profile.currency_id),
+      toNullableParam(profile.currency_name),
+      toNullableParam(profile.currency_code),
+      toNullableParam(profile.currency_symbol),
     ]
   );
 };

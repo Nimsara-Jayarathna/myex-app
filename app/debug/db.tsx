@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { refreshSession } from '@/api/auth';
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
+// eslint-disable-next-line import/no-unresolved
 import { getAllRows, getCounts, getMetaValue, initDb } from '@/utils/local-db';
-import { refreshSession } from '@/api/auth';
 
-const TABLES: Array<'transactions' | 'categories' | 'profile'> = [
+const TABLES: ('transactions' | 'categories' | 'profile')[] = [
   'transactions',
   'categories',
   'profile',

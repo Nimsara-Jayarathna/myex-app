@@ -1,15 +1,15 @@
 import dayjs from 'dayjs';
 
-import type { UserProfile } from '@/types';
-import { createTransaction, getTransactionsFiltered } from '@/api/transactions';
 import { getCategories } from '@/api/categories';
+import { createTransaction, getTransactionsFiltered } from '@/api/transactions';
+import type { UserProfile } from '@/types';
 import {
   deleteTransactionByLocalId,
   getPendingTransactions,
   initDb,
-  setMetaValue,
   replaceCategories,
   replaceSyncedTransactions,
+  setMetaValue,
   upsertProfile,
 } from '@/utils/local-db';
 import { setSyncState } from '@/utils/sync-state';
@@ -80,6 +80,10 @@ export const runFullSync = async (profile?: UserProfile) => {
         categoryLimit: profile.categoryLimit,
         defaultIncomeCategories: profile.defaultIncomeCategories,
         defaultExpenseCategories: profile.defaultExpenseCategories,
+        currency_id: profile.currency?.id ?? profile.currency?._id,
+        currency_name: profile.currency?.name,
+        currency_code: profile.currency?.code,
+        currency_symbol: profile.currency?.symbol,
       });
     }
 

@@ -1,9 +1,12 @@
+import { HOME_STICKY_HEADER_CARD_MIN_HEIGHT } from '@/components/home/layout/spacing';
+import { ThemedText } from '@/components/themed-text';
+import { useAuthStore } from '@/context/auth-store';
+import { useAppTheme } from '@/context/ThemeContext';
+import { BlurView } from 'expo-blur';
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { ThemedText } from '@/components/themed-text';
-import { useAppTheme } from '@/context/ThemeContext';
-import { HOME_STICKY_HEADER_CARD_MIN_HEIGHT } from '@/components/home/layout/spacing';
+
+// ...
 
 type SummaryCardProps = {
   income: number;
@@ -13,6 +16,9 @@ type SummaryCardProps = {
 
 export function SummaryCard({ income, expense, balance }: SummaryCardProps) {
   const { colors, resolvedTheme } = useAppTheme();
+  const { user } = useAuthStore();
+  const currencySymbol = user?.currency?.symbol ?? '$';
+
   const incomeColor = resolvedTheme === 'dark' ? '#22c55e' : '#16a34a';
   const expenseColor = resolvedTheme === 'dark' ? '#ef4444' : '#dc2626';
   const isDark = resolvedTheme === 'dark';
@@ -20,8 +26,8 @@ export function SummaryCard({ income, expense, balance }: SummaryCardProps) {
   const androidFallbackOverlay = isDark ? 'rgba(2, 6, 23, 0.7)' : 'rgba(226, 232, 240, 0.6)';
   const dividerColor = isDark ? 'rgba(255, 255, 255, 0.08)' : colors.borderSoft;
   // Safe formatting helper
-  const formatMoney = (val: number) => 
-    `$${(Number.isFinite(val) ? Math.abs(val) : 0).toFixed(2)}`;
+  const formatMoney = (val: number) =>
+    `${currencySymbol}${(Number.isFinite(val) ? Math.abs(val) : 0).toFixed(2)}`;
 
   const cardBorderColor =
     Platform.OS === 'android'
@@ -55,7 +61,7 @@ export function SummaryCard({ income, expense, balance }: SummaryCardProps) {
       )}
       <View style={styles.header}>
         <ThemedText style={[styles.label, { color: colors.textSubtle }]}>
-          Today's Balance
+          Today&apos;s Balance
         </ThemedText>
         <ThemedText
           style={[
@@ -77,7 +83,7 @@ export function SummaryCard({ income, expense, balance }: SummaryCardProps) {
             {formatMoney(income)}
           </ThemedText>
         </View>
-        
+
         <View style={[styles.verticalDivider, { backgroundColor: dividerColor }]} />
 
         <View style={styles.column}>

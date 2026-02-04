@@ -9,7 +9,73 @@ export interface AuthCredentials {
 
 export interface AuthResponse {
   user: UserProfile;
-  token?: string;
+  tokens: {
+    accessToken: string;
+    refreshToken: string;
+  };
+}
+
+export interface RegisterInitRequest {
+  email: string;
+}
+
+export interface RegisterVerifyRequest {
+  email: string;
+  otp: string;
+}
+
+export interface RegisterVerifyResponse {
+  registrationToken: string;
+}
+
+export interface RegisterCompleteRequest {
+  registrationToken: string;
+  email: string;
+  fname: string;
+  lname: string;
+  password: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+  platform?: 'mobile' | 'web';
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface ChangeEmailVerifyRequest {
+  otp: string;
+}
+
+export interface ChangeEmailVerifyResponse {
+  changeToken: string;
+}
+
+export interface ChangeEmailRequestNewRequest {
+  changeToken: string;
+  newEmail: string;
+}
+
+export interface ChangeEmailConfirmRequest {
+  otp: string;
+}
+
+export interface UpdateProfileRequest {
+  fname?: string;
+  lname?: string;
 }
 
 export interface SessionResponse {
@@ -27,6 +93,16 @@ export interface UserProfile {
   categoryLimit?: number;
   defaultIncomeCategories?: string[];
   defaultExpenseCategories?: string[];
+  currency?: Currency;
+}
+
+export interface Currency {
+  _id?: string;
+  id: string;
+  name: string;
+  code: string;
+  symbol: string;
+  isSelected?: boolean;
 }
 
 export interface Category {

@@ -44,7 +44,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   };
 
   const handlePressSettings = () => {
-    router.navigate('/home/settings');
+    router.navigate('/home/profile/categories');
   };
 
   const displayName = user?.name?.trim() || 'Guest';

@@ -1,11 +1,13 @@
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import React from 'react';
-import { StyleSheet, View, Pressable, Text } from 'react-native';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { useAuthStore } from '@/context/auth-store';
 import { useAppTheme } from '@/context/ThemeContext';
-import type { Transaction } from '@/types';
+
+// ...
 
 type TransactionRowProps = {
   transaction: Transaction;
@@ -27,9 +29,11 @@ export function TransactionRow({
   onRowPress,
 }: TransactionRowProps) {
   const { colors, resolvedTheme } = useAppTheme();
-  
+  const { user } = useAuthStore();
+  const currencySymbol = user?.currency?.symbol ?? '$';
+
   const isIncome = transaction.type === 'income';
-  
+
   // LOGIC: Check if record was created today to allow deletion
   const isDeletable = dayjs(transaction.date).isSame(dayjs(), 'day');
 
@@ -38,18 +42,18 @@ export function TransactionRow({
     .find((value) => value && value !== 'r');
   const hasNote = Boolean(descriptionText);
 
-  const statusColor = isIncome 
-    ? (resolvedTheme === 'dark' ? '#22c55e' : '#16a34a') 
+  const statusColor = isIncome
+    ? (resolvedTheme === 'dark' ? '#22c55e' : '#16a34a')
     : (resolvedTheme === 'dark' ? '#ef4444' : '#dc2626');
 
-  const iconBg = isIncome 
-    ? (resolvedTheme === 'dark' ? 'rgba(34, 197, 94, 0.12)' : '#d4efdf') 
+  const iconBg = isIncome
+    ? (resolvedTheme === 'dark' ? 'rgba(34, 197, 94, 0.12)' : '#d4efdf')
     : (resolvedTheme === 'dark' ? 'rgba(239, 68, 68, 0.12)' : '#fadbd8');
 
   return (
     <Pressable
       style={[
-        styles.container, 
+        styles.container,
         { backgroundColor: colors.surfaceGlass, borderColor: colors.borderSoft }
       ]}
       onPress={(event) => {
@@ -57,13 +61,13 @@ export function TransactionRow({
         onRowPress?.();
       }}
     >
-      
+
       {/* 1. COMPACT STATUS INDICATOR */}
       <View style={[styles.iconBadge, { backgroundColor: iconBg }]}>
-        <MaterialIcons 
-          name={isIncome ? "arrow-downward" : "arrow-upward"} 
-          size={16} 
-          color={statusColor} 
+        <MaterialIcons
+          name={isIncome ? "arrow-downward" : "arrow-upward"}
+          size={16}
+          color={statusColor}
         />
       </View>
 
@@ -73,7 +77,7 @@ export function TransactionRow({
           <ThemedText style={[styles.categoryName, { color: colors.textMain }]} numberOfLines={1}>
             {transaction.categoryName || "Uncategorized"}
           </ThemedText>
-          
+
           {/* INNOVATION: Subtle Note Indicator */}
           {hasNote && (
             <Pressable
@@ -103,9 +107,9 @@ export function TransactionRow({
       <View style={styles.rightSection}>
         <View style={styles.amountColumn}>
           <ThemedText style={[styles.amount, { color: statusColor }]}>
-            {isIncome ? '+' : '-'}${Math.abs(transaction.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {isIncome ? '+' : '-'}{currencySymbol}{Math.abs(transaction.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </ThemedText>
-          
+
           {/* MODE SWITCH: Show Date Capsule only in 'All' view */}
           {mode === 'all' && (
             <View style={styles.dateCapsule}>
@@ -118,7 +122,7 @@ export function TransactionRow({
 
         {/* DELETE ACTION: Only if record is from Today */}
         {isDeletable && canDelete && (
-          <Pressable 
+          <Pressable
             onPress={(event) => {
               event.stopPropagation();
               const id = transaction.id || transaction._id;

@@ -4,13 +4,21 @@
 
 Blipzo is a modern, offline-first personal finance application built with Expo and React Native. It allows users to track their income and expenses seamlessly, even without an internet connection, syncing data when back online.
 
+## Quickstart
+```bash
+npm install
+cp .env.example .env
+npx expo start
+```
+
 ## Features
 
 -   **Offline-First Architecture**: Continue working without internet; data syncs automatically when connection is restored.
--   **Secure Authentication**: Robust user session management with JWT.
+-   **Secure Authentication**: OTP registration, password reset, and secure session handling.
 -   **Smart Syncing**: Background synchronization engine to keep local and remote data consistent.
 -   **Theming**: Support for light and dark modes with a custom design system.
 -   **Performance**: Built with `react-native-reanimated` for smooth UI interactions and `expo-sqlite` for fast local data access.
+-   **Currency Settings**: Per-user currency selection with live formatting updates.
 
 ## Tech Stack
 
@@ -27,6 +35,7 @@ Blipzo is a modern, offline-first personal finance application built with Expo a
 
 -   Node.js (LTS recommended)
 -   npm or yarn
+-   Expo Go (optional for device testing)
 
 ### Installation
 
@@ -42,7 +51,7 @@ Blipzo is a modern, offline-first personal finance application built with Expo a
     ```
 
 3.  Configure Environment:
-    Create a `.env` file in the root directory (copy from example if available, otherwise creaete new) and add your API URL. 
+    Create a `.env` file in the root directory (copy from example if available, otherwise create new) and add your API URL.
     
     *Note: The app requires a valid backend URL to function fully.*
     ```bash
@@ -53,6 +62,14 @@ Blipzo is a modern, offline-first personal finance application built with Expo a
     ```bash
     npx expo start
     ```
+
+### Environment variables
+| Name | Required | Example | Notes |
+| --- | --- | --- | --- |
+| EXPO_PUBLIC_API_BASE_URL | Yes | http://localhost:5000 | Base URL for the Blipzo API |
+
+### API setup
+Make sure the API is running and reachable from your device or simulator. If you are using a physical device, use your machine IP instead of `localhost`.
 
 ## Project Structure
 
@@ -66,7 +83,8 @@ Blipzo is a modern, offline-first personal finance application built with Expo a
 
 ## Release Notes
 Detailed release notes for each version can be found in the [docs/releases](docs/releases/) directory.
-- Latest Release: [v1.0.0](docs/releases/v1.0.0.md)
+- **Latest Release**: [v1.1.0](docs/releases/v1.1.0.md) - *Glassmorphic UI, Robust Offline Mode, Advanced Auth*
+- Previous Release: [v1.0.0](docs/releases/v1.0.0.md)
 
 
 ## Scripts
@@ -75,3 +93,7 @@ Detailed release notes for each version can be found in the [docs/releases](docs
 -   `npm run android`: Run on Android emulator/device.
 -   `npm run ios`: Run on iOS simulator/device.
 -   `npm run reset-project`: Reset the project to a blank slate (Use with caution).
+
+## Troubleshooting
+- If login fails on a device, confirm `EXPO_PUBLIC_API_BASE_URL` is reachable from that device.
+- If you see CORS or cookie issues, check API `CLIENT_ORIGIN` and cookie settings.

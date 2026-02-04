@@ -29,6 +29,10 @@ export type LocalProfileRow = {
   categoryLimit?: number | null;
   defaultIncomeCategories?: string[];
   defaultExpenseCategories?: string[];
+  currency_id?: string | null;
+  currency_name?: string | null;
+  currency_code?: string | null;
+  currency_symbol?: string | null;
 };
 
 const webStore = {

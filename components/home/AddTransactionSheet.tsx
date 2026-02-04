@@ -1,8 +1,13 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import React, { useEffect, useState, useRef } from 'react';
+import * as Haptics from 'expo-haptics';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  Animated,
+  Dimensions,
   InteractionManager,
   KeyboardAvoidingView,
   Modal,
@@ -10,31 +15,26 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Text,
   TextInput,
   View,
-  Dimensions,
-  Text,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { createTransaction } from '@/api/transactions';
 import { getCategories } from '@/api/categories';
+import { createTransaction } from '@/api/transactions';
 import { ThemedText } from '@/components/themed-text';
-import { useAppTheme } from '@/context/ThemeContext';
+import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
+import { useAuthStore } from '@/context/auth-store';
 import { useOffline } from '@/context/OfflineContext';
-import { getLocalCategories, insertPendingTransaction, initDb } from '@/utils/local-db';
-import { triggerToast } from '@/utils/toast';
-import { logError } from '@/utils/logger';
+import { useAppTheme } from '@/context/ThemeContext';
 import type { Category, Transaction, TransactionInput } from '@/types';
+// eslint-disable-next-line import/no-unresolved
+import { getLocalCategories, initDb, insertPendingTransaction } from '@/utils/local-db';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// 5-Column Math
 const GRID_GAP = 8;
 const PADDING_H = 24;
-const CHIP_WIDTH = (SCREEN_WIDTH - (PADDING_H * 2) - (GRID_GAP * 4)) / 5;
+const CHIP_WIDTH = (SCREEN_WIDTH - (PADDING_H * 2) - (GRID_GAP * 4) - 2) / 5;
 
 const OFFLINE_CATEGORIES: CategoryOption[] = [
   { id: 'offline-income', name: 'Income', type: 'income', isDefault: true },
@@ -42,25 +42,16 @@ const OFFLINE_CATEGORIES: CategoryOption[] = [
 ];
 
 type AddTransactionStep = 1 | 2;
-
-type CategoryOption = {
-  id: string;
-  name: string;
-  type: 'income' | 'expense';
-  isDefault?: boolean;
-};
-
-type AddTransactionSheetProps = {
-  visible: boolean;
-  onClose: () => void;
-  onTransactionCreated?: (transaction: Transaction) => void;
-};
+type CategoryOption = { id: string; name: string; type: 'income' | 'expense'; isDefault?: boolean; };
+type AddTransactionSheetProps = { visible: boolean; onClose: () => void; onTransactionCreated?: (transaction: Transaction) => void; };
 
 export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: AddTransactionSheetProps) {
   const queryClient = useQueryClient();
   const { colors, resolvedTheme } = useAppTheme();
   const { offlineMode, capabilities } = useOffline();
   const inputRef = useRef<TextInput>(null);
+  const { user } = useAuthStore();
+  const currencySymbol = user?.currency?.symbol ?? '$';
 
   const [step, setStep] = useState<AddTransactionStep>(1);
   const [amount, setAmount] = useState('');
@@ -68,11 +59,15 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [filteredCategories, setFilteredCategories] = useState<CategoryOption[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [note, setNote] = useState('');
+  const [isExpanded, setIsExpanded] = useState(false);
 
+  const [blockingState, setBlockingState] = useState<BlockingState>('idle');
+  const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
+
+  const shakeAnim = useRef(new Animated.Value(0)).current;
   const isDark = resolvedTheme === 'dark';
   const canAdd = capabilities.canAdd;
 
@@ -87,38 +82,37 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
     }
   }, [visible]);
 
+  // IMPORTANT: Improved focus timing for Android/iOS consistency
   const handleModalShow = () => {
     InteractionManager.runAfterInteractions(() => {
-      setTimeout(() => inputRef.current?.focus(), 100);
+      setTimeout(() => inputRef.current?.focus(), 150);
     });
   };
 
   useEffect(() => {
     if (!visible || step !== 2) return;
     const loadCategories = async () => {
-      // Offline: load categories from local DB.
+      setBlockingState('loading');
       if (offlineMode) {
         try {
-          setIsLoadingCategories(true);
           await initDb();
           const local = await getLocalCategories();
-          const mapped = local.map(item => ({
+          const mapped = local.map((item: any) => ({
             id: item.serverId,
             name: item.name,
             type: item.type,
             isDefault: item.isDefault === 1,
           }));
           setCategories(mapped.length ? mapped : OFFLINE_CATEGORIES);
+          setBlockingState('idle');
         } catch {
           setCategories(OFFLINE_CATEGORIES);
-        } finally {
-          setIsLoadingCategories(false);
+          setBlockingState('idle');
         }
         return;
       }
 
       try {
-        setIsLoadingCategories(true);
         const result = await getCategories();
         const mapped = (result.categories ?? []).map((item: Category) => ({
           id: item.id ?? item._id ?? item.name,
@@ -127,10 +121,10 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
           isDefault: item.isDefault,
         }));
         setCategories(mapped);
+        setBlockingState('idle');
       } catch {
-        Alert.alert('Error', 'Unable to load categories');
-      } finally {
-        setIsLoadingCategories(false);
+        setBlockingState('error');
+        setBlockingMessage('Unable to load categories');
       }
     };
     void loadCategories();
@@ -138,8 +132,7 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
 
   useEffect(() => {
     const nextFiltered = categories.filter(category => category.type === transactionType);
-    // Force exactly 10 items (5x2 grid)
-    setFilteredCategories(nextFiltered.slice(0, 10));
+    setFilteredCategories(nextFiltered);
     if (nextFiltered.length > 0) {
       const defaultForType = nextFiltered.find(category => category.isDefault);
       setSelectedCategory(defaultForType?.id ?? nextFiltered[0]?.id ?? '');
@@ -148,99 +141,105 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
 
   const mutation = useMutation({
     mutationFn: (payload: TransactionInput) => createTransaction(payload),
+    onMutate: () => { setBlockingState('loading'); setBlockingMessage('Saving...'); },
     onSuccess: transaction => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      onTransactionCreated?.(transaction);
-      onClose();
+      setBlockingState('success');
+      setTimeout(() => {
+        setBlockingState('idle');
+        queryClient.invalidateQueries({ queryKey: ['transactions'] });
+        onTransactionCreated?.(transaction);
+        onClose();
+      }, 1000);
     },
-    onError: () => Alert.alert('Error', 'Unable to add transaction'),
+    onError: (error: any) => {
+      setBlockingState('error');
+      setBlockingMessage(error?.response?.data?.message || 'Error saving');
+    },
   });
 
   const handleSave = () => {
     if (offlineMode) {
-      // Offline: enqueue for local sync later.
+      setBlockingState('loading');
       const now = new Date().toISOString();
       const localId = `offline-${Date.now()}`;
       const categoryName = categories.find(item => item.id === selectedCategory)?.name ?? null;
-      const safeCategoryId =
-        typeof selectedCategory === 'string' ? selectedCategory : String(selectedCategory ?? '');
-      const safeCategoryName =
-        typeof categoryName === 'string'
-          ? categoryName
-          : categoryName
-          ? JSON.stringify(categoryName)
-          : null;
-      void initDb()
-        .then(() =>
-          insertPendingTransaction({
-            localId,
-            serverId: null,
-            type: transactionType,
-            amount: Number(amount),
-            categoryId: safeCategoryId,
-            categoryName: safeCategoryName,
-            note: note.trim() || null,
-            date: dayjs(date).format('YYYY-MM-DD'),
-            status: 'pending',
-            createdAt: now,
-            updatedAt: now,
-          })
-        )
+
+      initDb()
+        .then(() => insertPendingTransaction({
+          localId, serverId: null, type: transactionType, amount: Number(amount),
+          categoryId: String(selectedCategory), categoryName: String(categoryName),
+          note: note.trim() || null, date: dayjs(date).format('YYYY-MM-DD'),
+          status: 'pending', createdAt: now, updatedAt: now,
+        }))
         .then(() => {
-          queryClient.invalidateQueries({ queryKey: ['transactions', 'today-local'] });
-          triggerToast({ message: 'Saved locally. This will sync when you are back online.' });
-          onClose();
+          setBlockingState('success');
+          setTimeout(() => {
+            setBlockingState('idle');
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            onClose();
+          }, 1000);
         })
-        .catch((error) => {
-          logError('offline-save: failed', error);
-          Alert.alert('Error', 'Unable to save offline record.');
-        });
+        .catch(() => setBlockingState('error'));
       return;
     }
-
     mutation.mutate({
       amount: Number(amount),
       type: transactionType,
       category: selectedCategory,
       date: dayjs(date).format('YYYY-MM-DD'),
-      note: note.trim() || undefined,
+      note: note.trim() || undefined
     });
   };
 
-  if (!visible) return null;
+  const triggerLimitReached = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 8, duration: 45, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 45, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 45, useNativeDriver: true }),
+    ]).start();
+  };
 
   const handleAmountChange = (value: string) => {
-    const sanitized = value.replace(/[^0-9.]/g, '');
-    const parts = sanitized.split('.');
-    const next =
-      parts.length <= 2 ? sanitized : `${parts[0]}.${parts.slice(1).join('')}`;
-    setAmount(next);
+    if (value.length < amount.length) { setAmount(value); return; }
+    const cleaned = value.replace(/[^0-9.]/g, '');
+    if ((cleaned.match(/\./g) || []).length > 1) { triggerLimitReached(); return; }
+    const decimalIndex = cleaned.indexOf('.');
+    if (decimalIndex !== -1 && cleaned.split('.')[1].length > 2) { triggerLimitReached(); return; }
+
+    if (cleaned.endsWith('.')) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    let final = cleaned;
+    if (final.startsWith('.')) final = '0' + final;
+    if (final.length > 1 && final[0] === '0' && final[1] !== '.') final = final.replace(/^0+/, '');
+    setAmount(final);
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-      onShow={handleModalShow}
-    >
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} onShow={handleModalShow}>
+      {/* KEYBOARD AVOIDING VIEW MUST WRAP THE ENTIRE INTERNAL MODAL CONTENT */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.backdrop}
       >
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        
+
         <View style={[styles.sheet, { backgroundColor: colors.surface1, borderColor: colors.borderSoft }]}>
           <View style={[styles.handle, { backgroundColor: colors.borderSoft }]} />
-          
+
           <View style={styles.header}>
             <View style={styles.headerTitleGroup}>
               <ThemedText style={styles.titleText}>New Transaction</ThemedText>
               {step === 2 && (
                 <Pressable onPress={() => setStep(1)} style={styles.editAmountPill}>
                   <MaterialIcons name="edit" size={12} color={colors.primaryAccent} />
-                  <ThemedText style={[styles.editAmountText, { color: colors.primaryAccent }]}>${amount}</ThemedText>
+                  <ThemedText style={[styles.editAmountText, { color: colors.primaryAccent }]}>
+                    {currencySymbol}{amount}
+                  </ThemedText>
                 </Pressable>
               )}
             </View>
@@ -249,48 +248,41 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
             </Pressable>
           </View>
 
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
             {step === 1 ? (
               <View style={styles.stepContainer}>
-                {/* AMOUNT INPUT: Fixed symbol clipping and alignment */}
+                {/* AMOUNT INPUT SECTION - PERFECTLY CENTERED */}
                 <View style={styles.amountContainer}>
-                  <Text style={[styles.currency, { color: colors.textSubtle }]}>$</Text>
-                  <TextInput
-                    ref={inputRef}
-                    value={amount}
-                    onChangeText={handleAmountChange}
-                    keyboardType={Platform.OS === 'android' ? 'numeric' : 'decimal-pad'}
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    placeholderTextColor={colors.textSubtle}
-                    style={[styles.mainInput, { color: colors.textMain }]}
-                    maxLength={10}
-                  />
+                  <Animated.View style={[styles.amountInputWrapper, { transform: [{ translateX: shakeAnim }] }]}>
+                    <Text style={[styles.currency, { color: colors.textMain }]}>{currencySymbol}</Text>
+                    <TextInput
+                      ref={inputRef}
+                      value={amount}
+                      onChangeText={handleAmountChange}
+                      keyboardType="decimal-pad"
+                      placeholder="0.00"
+                      placeholderTextColor={colors.textSubtle}
+                      style={[styles.mainInput, { color: colors.textMain }]}
+                      maxLength={10}
+                    />
+                  </Animated.View>
                 </View>
 
                 <ThemedText style={styles.typeLabel}>Select transaction type</ThemedText>
                 <View style={styles.typeRow}>
                   <Pressable
-                    style={[
-                      styles.typeBtn,
-                      styles.incomeBtn,
-                      isDark && styles.incomeBtnDark,
-                      !canAdd && { opacity: 0.6 },
-                    ]}
-                    disabled={!canAdd}
+                    style={[styles.typeBtn, styles.incomeBtn, isDark && styles.incomeBtnDark]}
                     onPress={() => { setTransactionType('income'); setStep(2); }}
                   >
                     <View style={styles.typeIconBg}><MaterialIcons name="add" size={18} color="#22c55e" /></View>
                     <ThemedText style={styles.btnLabel}>Income</ThemedText>
                   </Pressable>
                   <Pressable
-                    style={[
-                      styles.typeBtn,
-                      styles.expenseBtn,
-                      isDark && styles.expenseBtnDark,
-                      !canAdd && { opacity: 0.6 },
-                    ]}
-                    disabled={!canAdd}
+                    style={[styles.typeBtn, styles.expenseBtn, isDark && styles.expenseBtnDark]}
                     onPress={() => { setTransactionType('expense'); setStep(2); }}
                   >
                     <View style={styles.typeIconBg}><MaterialIcons name="remove" size={18} color="#ef4444" /></View>
@@ -300,21 +292,18 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
               </View>
             ) : (
               <View style={styles.stepContainer}>
-                {/* 5 x 2 CATEGORY GRID */}
+                {/* CATEGORY GRID */}
                 <View style={styles.section}>
                   <ThemedText style={styles.label}>Category</ThemedText>
                   <View style={styles.categoryGrid}>
-                    {isLoadingCategories ? <ActivityIndicator size="small" color={colors.primaryAccent} /> : 
-                      filteredCategories.map(cat => (
-                      <Pressable 
-                        key={cat.id} 
+                    {(isExpanded ? filteredCategories : filteredCategories.slice(0, 10)).map(cat => (
+                      <Pressable
+                        key={cat.id}
                         onPress={() => setSelectedCategory(cat.id)}
-                        disabled={!capabilities.canSelectCategory}
                         style={[
-                          styles.catChip, 
+                          styles.catChip,
                           { backgroundColor: colors.surface2, borderColor: colors.borderSoft },
-                          selectedCategory === cat.id && { borderColor: colors.primaryAccent, backgroundColor: colors.primaryAccent + '15'},
-                          !capabilities.canSelectCategory && { opacity: 0.6 },
+                          selectedCategory === cat.id && { borderColor: colors.primaryAccent, backgroundColor: colors.primaryAccent + '15' }
                         ]}
                       >
                         <Text numberOfLines={1} style={[styles.catName, { color: colors.textMain }, selectedCategory === cat.id && { color: colors.primaryAccent, fontWeight: 'bold' }]}>
@@ -322,9 +311,18 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
                         </Text>
                       </Pressable>
                     ))}
+                    {filteredCategories.length > 10 && (
+                      <Pressable onPress={() => setIsExpanded(!isExpanded)} style={styles.showMoreBtn}>
+                        <ThemedText style={{ color: colors.textMuted, fontSize: 12, fontWeight: '600' }}>
+                          {isExpanded ? 'Show Less' : `+${filteredCategories.length - 10} More`}
+                        </ThemedText>
+                        <MaterialIcons name={isExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"} size={16} color={colors.textMuted} />
+                      </Pressable>
+                    )}
                   </View>
                 </View>
 
+                {/* DATE SELECTOR (RESTORED) */}
                 <View style={styles.section}>
                   <ThemedText style={styles.label}>Date</ThemedText>
                   <Pressable onPress={() => setShowDatePicker(true)} style={[styles.inputBox, { backgroundColor: colors.surface2, borderColor: colors.borderSoft }]}>
@@ -333,6 +331,7 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
                   </Pressable>
                 </View>
 
+                {/* NOTE INPUT */}
                 <View style={styles.section}>
                   <ThemedText style={styles.label}>Note</ThemedText>
                   <TextInput
@@ -340,105 +339,85 @@ export function AddTransactionSheet({ visible, onClose, onTransactionCreated }: 
                     onChangeText={setNote}
                     placeholder="Short description..."
                     placeholderTextColor={colors.textSubtle}
-                    multiline
                     style={[styles.noteInput, { backgroundColor: colors.surface2, borderColor: colors.borderSoft, color: colors.textMain }]}
                   />
                 </View>
 
-                <Pressable
-                  onPress={handleSave}
-                  disabled={!canAdd}
-                  style={[
-                    styles.saveBtn,
-                    { backgroundColor: colors.primaryAccent },
-                    !canAdd && { opacity: 0.6 },
-                  ]}
-                >
+                <Pressable onPress={handleSave} disabled={!canAdd} style={[styles.saveBtn, { backgroundColor: colors.primaryAccent }, !canAdd && { opacity: 0.6 }]}>
                   {mutation.isPending ? <ActivityIndicator color="#fff" /> : <ThemedText style={styles.saveText}>Complete</ThemedText>}
                 </Pressable>
+
+                {/* Spacer to allow scrolling past keyboard */}
+                <View style={{ height: 40 }} />
               </View>
             )}
           </ScrollView>
 
-          {/* DATE PICKER POPUP (MODAL) */}
-          <Modal visible={showDatePicker} transparent animationType="fade">
-            <View style={styles.pickerBackdrop}>
-               <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowDatePicker(false)} />
-               <View style={[styles.pickerPopup, { backgroundColor: colors.surface2 }]}>
-                  <DateTimePicker
-                    value={date}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={(e, d) => {
-                      if (Platform.OS === 'android') setShowDatePicker(false);
-                      if (d) setDate(d);
-                    }}
-                    textColor={colors.textMain}
-                  />
-                  {Platform.OS === 'ios' && (
-                    <Pressable onPress={() => setShowDatePicker(false)} style={styles.pickerDoneBtn}>
-                      <ThemedText style={{ color: colors.primaryAccent, fontWeight: 'bold' }}>Done</ThemedText>
-                    </Pressable>
-                  )}
-               </View>
-            </View>
-          </Modal>
+          {/* DATE PICKER COMPONENT */}
+          {showDatePicker && (
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(e, d) => {
+                setShowDatePicker(false);
+                if (d) setDate(d);
+              }}
+            />
+          )}
         </View>
       </KeyboardAvoidingView>
+      <BlockingModal state={blockingState} message={blockingMessage} onClose={() => setBlockingState('idle')} />
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 32, borderTopRightRadius: 32, borderWidth: 1, paddingBottom: 40, maxHeight: '85%' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  sheet: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    maxHeight: '90%', // Ensures it doesn't hit the very top
+    width: '100%',
+  },
   handle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, marginBottom: 15 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, marginBottom: 10 },
   headerTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   titleText: { fontSize: 18, fontWeight: '900' },
   editAmountPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, backgroundColor: 'rgba(59,130,246,0.1)' },
   editAmountText: { fontSize: 13, fontWeight: 'bold' },
   closeBtn: { padding: 4 },
-  scrollContent: { paddingHorizontal: 24, paddingBottom: 20 },
-  stepContainer: { gap: 24 },
-  
-  // Amount Section Fixes
-  amountContainer: { 
-    flexDirection: 'row', 
-    alignItems: 'center', // Changed to center for better input compatibility
-    justifyContent: 'center', 
-    paddingVertical: 30,
-    height: 120, // Explicit height to prevent clipping
-  },
-  currency: { fontSize: 32, fontWeight: '600', marginRight: 10 },
-  mainInput: { fontSize: 64, fontWeight: 'bold', minWidth: 160, textAlign: 'center', height: 80, padding: 0 },
-  
+  scrollContent: { paddingHorizontal: 24, paddingBottom: 40 },
+  stepContainer: { gap: 20 },
+
+  // FIXED ALIGNMENT
+  amountContainer: { width: '100%', alignItems: 'center', justifyContent: 'center', paddingVertical: 30 },
+  amountInputWrapper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  currency: { fontSize: 32, fontWeight: '600', marginRight: 4 },
+  mainInput: { fontSize: 56, fontWeight: 'bold', textAlign: 'center', padding: 0, minWidth: 100 },
+
   typeLabel: { textAlign: 'center', fontSize: 13, opacity: 0.6 },
   typeRow: { flexDirection: 'row', gap: 12 },
   typeBtn: { flex: 1, height: 56, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   typeIconBg: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   btnLabel: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   incomeBtn: { backgroundColor: '#22c55e' },
-  incomeBtnDark: { backgroundColor: 'rgba(34, 197, 94, 0.25)' },
+  incomeBtnDark: { backgroundColor: 'rgba(34, 197, 94, 0.4)' },
   expenseBtn: { backgroundColor: '#ef4444' },
-  expenseBtnDark: { backgroundColor: 'rgba(239, 68, 68, 0.25)' },
-  
+  expenseBtnDark: { backgroundColor: 'rgba(239, 68, 68, 0.4)' },
+
   section: { gap: 10 },
   label: { fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase', opacity: 0.5, letterSpacing: 1 },
-  
-  // Category Grid Fixes
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP },
-  catChip: { width: CHIP_WIDTH, height: 42, justifyContent: 'center', alignItems: 'center', borderRadius: 10, borderWidth: 1.5, paddingHorizontal: 2 },
+  catChip: { width: CHIP_WIDTH, height: 42, justifyContent: 'center', alignItems: 'center', borderRadius: 10, borderWidth: 1.5 },
   catName: { fontSize: 10, fontWeight: '600', textAlign: 'center' },
-  
+
   inputBox: { height: 54, borderRadius: 14, borderWidth: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 12 },
   inputText: { fontSize: 15, fontWeight: 'bold' },
-  noteInput: { minHeight: 80, borderRadius: 14, borderWidth: 1, padding: 14, fontSize: 15, textAlignVertical: 'top' },
+  noteInput: { height: 54, borderRadius: 14, borderWidth: 1, paddingHorizontal: 16, fontSize: 15 },
   saveBtn: { height: 60, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   saveText: { color: '#fff', fontSize: 17, fontWeight: 'bold' },
-
-  // Picker Modal
-  pickerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  pickerPopup: { width: '85%', padding: 20, borderRadius: 24, overflow: 'hidden' },
-  pickerDoneBtn: { alignSelf: 'flex-end', marginTop: 10, padding: 10 },
+  showMoreBtn: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 4 },
 });

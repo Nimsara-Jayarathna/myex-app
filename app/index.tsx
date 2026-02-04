@@ -12,22 +12,22 @@ import Animated, {
   withTiming
 } from 'react-native-reanimated';
 
-import { getSession, refreshSession } from '@/api/auth';
+import { getSession } from '@/api/auth';
 import { apiClient } from '@/api/client';
 import { HomeBackground } from '@/components/home/HomeBackground';
 import { ThemedText } from '@/components/themed-text';
 import { useOffline } from '@/context/OfflineContext';
 import { useAuth } from '@/hooks/useAuth';
 import { isAuthError, isNetworkOrTimeoutError, withRetry } from '@/utils/api-retry';
+// eslint-disable-next-line import/no-unresolved
 import { getLocalProfile, initDb } from '@/utils/local-db';
-import { runFullSync } from '@/utils/sync-service';
 
 const ACCENT_COLOR = '#3498db';
 const SESSION_CACHE_KEY = 'has_valid_session';
 
 export default function IndexScreen() {
   const router = useRouter();
-  const { setAuth, logout } = useAuth();
+  const { setAuth, logout, setHasValidSession } = useAuth();
   const { offlineMode, promptToGoOffline, setIsBooting } = useOffline();
   const hasNavigatedRef = useRef(false);
   const sessionCacheLoadedRef = useRef(false);
@@ -66,7 +66,9 @@ export default function IndexScreen() {
     const loadSessionCache = async () => {
       if (sessionCacheLoadedRef.current) return;
       const cached = await AsyncStorage.getItem(SESSION_CACHE_KEY);
-      hasValidSessionRef.current = cached === 'true';
+      const isValidSession = cached === 'true';
+      hasValidSessionRef.current = isValidSession;
+      setHasValidSession(isValidSession);
       sessionCacheLoadedRef.current = true;
     };
 
@@ -92,15 +94,9 @@ export default function IndexScreen() {
           return { status: 'unauth' as const };
         }
 
-        let authData = session;
-        try {
-          const refreshed = await refreshSession();
-          if (refreshed?.user) authData = refreshed;
-        } catch {
-          // Ignore refresh error; session is still valid.
-        }
-
-        return { status: 'ok' as const, authData };
+        // Don't manually refresh here - let the API client handle it automatically
+        // when tokens expire via the response interceptor
+        return { status: 'ok' as const, authData: session };
       } catch (e) {
         if (isNetworkOrTimeoutError(e)) {
           return { status: 'network' as const };
@@ -121,10 +117,17 @@ export default function IndexScreen() {
         await loadSessionCache();
         const localProfile = await loadLocalProfile();
         if (!hasValidSessionRef.current) {
+          // If we are not focused (e.g., covered by Login screen), don't redirect/prompt
+          // This prevents background 'index' logic from interfering with top-level auth flow.
+          // We can check if we are still the root path? 
+          // For now, rely on safe retry or silent failure.
+
           try {
             await withRetry(() => apiClient.get('/health', { timeout: 5000 }), 2);
-            hasNavigatedRef.current = true;
-            router.replace('/welcome');
+            if (!hasNavigatedRef.current) {
+              hasNavigatedRef.current = true;
+              router.replace('/welcome');
+            }
           } catch {
             promptToGoOffline(
               'You need to be online to sign in.',
@@ -133,28 +136,17 @@ export default function IndexScreen() {
                 hasNavigatedRef.current = true;
                 router.replace('/welcome');
               },
-              {
-                allowOffline: Boolean(localProfile),
-                primaryLabel: 'Go to sign in',
-                onConfirm: localProfile
-                  ? () => {
-                    setAuth({ user: localProfile });
-                    hasNavigatedRef.current = true;
-                    router.replace('/home/today' as any);
-                  }
-                  : undefined,
-                force: true,
-              }
+              { allowOffline: false, primaryLabel: 'Retry', force: true }
             );
           }
           return;
         }
 
+
         const result = await runSessionCheck();
 
         if (result.status === 'ok') {
           setAuth(result.authData);
-          void runFullSync(result.authData.user);
           await AsyncStorage.setItem(SESSION_CACHE_KEY, 'true');
           hasNavigatedRef.current = true;
           router.replace('/home' as any);
@@ -193,16 +185,11 @@ export default function IndexScreen() {
               }
               if (retryResult.status === 'unauth') {
                 await AsyncStorage.setItem(SESSION_CACHE_KEY, 'false');
-                promptToGoOffline(
-                  'You need to be online to sign in.',
-                  async () => {
-                    await apiClient.get('/health', { timeout: 5000 });
-                    hasNavigatedRef.current = true;
-                    router.replace('/welcome');
-                  },
-                  { allowOffline: false, primaryLabel: 'Go to sign in' }
-                );
-                throw new Error('AUTH_INVALID');
+                // Don't throw - explicitly navigate to welcome so we don't get stuck in the loop
+                // "Connected" success message will show briefly, then we route.
+                hasNavigatedRef.current = true;
+                router.replace('/welcome');
+                return;
               }
               throw new Error('NETWORK');
             },
@@ -238,7 +225,7 @@ export default function IndexScreen() {
 
     setIsBooting(true);
     void checkAuth().finally(() => setIsBooting(false));
-  }, []);
+  }, [setAuth, logout, setHasValidSession, offlineMode, promptToGoOffline, setIsBooting, router, loadingOpacity, logoScale]);
 
   useEffect(() => {
     if (offlineMode && !hasNavigatedRef.current) {

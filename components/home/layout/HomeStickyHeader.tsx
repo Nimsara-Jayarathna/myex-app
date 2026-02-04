@@ -1,15 +1,15 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { SummaryCard } from '@/components/home/today/SummaryCard';
-import SmartFilterHeader from '@/components/home/all/SmartFilterHeader';
+import { SmartFilterHeader } from '@/components/home/all/SmartFilterHeader';
 import { StickyHeaderShell } from '@/components/home/layout/StickyHeaderShell';
 import {
   HOME_STICKY_HEADER_COLLAPSED_HEIGHT,
   HOME_STICKY_HEADER_EXPANDED_HEIGHT,
   HOME_STICKY_HEADER_LIST_GAP,
 } from '@/components/home/layout/spacing';
+import { SummaryCard } from '@/components/home/today/SummaryCard';
+import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
 import type { AllFilters, Grouping } from '@/hooks/home/useTransactionLogic';
 
@@ -71,7 +71,7 @@ export function HomeStickyHeader(props: HomeStickyHeaderProps) {
         if (props.variant === 'today') {
           return (
             <View style={[styles.collapsedCard, { backgroundColor: colors.surfaceGlassThick, borderColor: colors.borderGlass }]}>
-              <ThemedText style={[styles.collapsedLabel, { color: colors.textSubtle }]}>Today's Balance</ThemedText>
+              <ThemedText style={[styles.collapsedLabel, { color: colors.textSubtle }]}>Today&apos;s Balance</ThemedText>
               <ThemedText style={[styles.collapsedValue, { color: props.balance >= 0 ? colors.primaryAccent : expenseColor }]}>
                 {props.balance < 0 ? '-' : ''}{formatMoney(props.balance)}
               </ThemedText>
