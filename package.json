@@ -7,7 +7,17 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "typecheck": "tsc --noEmit",
+    "test": "node -e \"console.error('Tests not configured. Add a test framework and real tests.'); process.exit(1)\"",
+    "build": "expo export",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build"
+  },
+  "engines": {
+    "node": "24.18.0",
+    "npm": ">=11 <12"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -53,6 +63,7 @@
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
     "eslint-import-resolver-typescript": "^4.4.4",
+    "prettier": "^3.8.3",
     "typescript": "~5.9.2"
   },
   "private": true
