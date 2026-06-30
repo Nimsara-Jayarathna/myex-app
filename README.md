@@ -55,7 +55,7 @@ npx expo start
     
     *Note: The app requires a valid backend URL to function fully.*
     ```bash
-    EXPO_PUBLIC_API_BASE_URL=http://your-api-url.com
+    EXPO_PUBLIC_API_BASE_URL=https://api.blipzo.xyz
     ```
 
 4.  Start the application:
@@ -66,7 +66,7 @@ npx expo start
 ### Environment variables
 | Name | Required | Example | Notes |
 | --- | --- | --- | --- |
-| EXPO_PUBLIC_API_BASE_URL | Yes | http://localhost:5000 | Base URL for the Blipzo API |
+| EXPO_PUBLIC_API_BASE_URL | Yes | https://api.blipzo.xyz | Base host for the Blipzo API. Do not include `/api/v1.1`; request paths add it in code. |
 
 ### API setup
 Make sure the API is running and reachable from your device or simulator. If you are using a physical device, use your machine IP instead of `localhost`.
