@@ -122,6 +122,8 @@ export default function WelcomeScreen() {
               {/* Login Button */}
               <Pressable
                 onPress={handleLoginPress}
+                accessibilityRole="button"
+                accessibilityLabel="Log in"
                 style={({ pressed }) => [
                   styles.primaryButton,
                   { backgroundColor: accentColor, shadowColor: accentColor },
@@ -136,6 +138,8 @@ export default function WelcomeScreen() {
               {/* Register Button */}
               <Pressable
                 onPress={handleRegisterPress}
+                accessibilityRole="button"
+                accessibilityLabel="Create account"
                 style={({ pressed }) => [
                   styles.secondaryButton,
                   { backgroundColor: colors.surface2, borderColor: colors.borderGlass },

@@ -19,6 +19,7 @@ import { HomeBackground } from '@/components/home/HomeBackground';
 import { ThemedText } from '@/components/themed-text';
 import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import { useAppTheme } from '@/context/ThemeContext';
+import { IOS_PASSWORD_RULES, isStrongPassword, PASSWORD_MIN_LENGTH, PASSWORD_REQUIREMENTS_LABEL } from '@/utils/password-policy';
 
 export default function ResetPasswordScreen() {
     const router = useRouter();
@@ -71,7 +72,7 @@ export default function ResetPasswordScreen() {
 
     // Confirm password validation with debounce
     useEffect(() => {
-        if (!confirmTouched || confirmPassword.trim() === '') {
+        if (!confirmTouched || confirmPassword === '') {
             setShowConfirmValidation(false);
             return;
         }
@@ -84,19 +85,19 @@ export default function ResetPasswordScreen() {
     }, [confirmPassword, confirmTouched]);
 
     // Validation
-    const isPasswordValid = password.trim().length >= 6;
+    const isPasswordValid = isStrongPassword(password);
     const doPasswordsMatch = password === confirmPassword && confirmPassword.length > 0;
     const isFormValid = token.trim().length > 0 && isPasswordValid && doPasswordsMatch;
 
     const isLoading = mutation.isPending;
 
     const handleSubmit = () => {
-        if (!token.trim() || !password.trim()) {
+        if (!token.trim() || !password || !confirmPassword) {
             setErrorMessage('Please fill in all fields.');
             return;
         }
-        if (!token.trim() || !password.trim()) {
-            setErrorMessage('Please fill in all fields.');
+        if (!isStrongPassword(password)) {
+            setErrorMessage(`${PASSWORD_REQUIREMENTS_LABEL}.`);
             return;
         }
         if (password !== confirmPassword) {
@@ -104,7 +105,7 @@ export default function ResetPasswordScreen() {
             return;
         }
         setErrorMessage(null);
-        mutation.mutate({ token: token.trim(), password: password.trim() });
+        mutation.mutate({ token: token.trim(), password });
     };
 
     return (
@@ -186,10 +187,10 @@ export default function ResetPasswordScreen() {
                                     <ThemedText
                                         style={[
                                             styles.charCounter,
-                                            { color: password.length >= 6 ? '#27ae60' : colors.textMuted }
+                                            { color: isStrongPassword(password) ? '#27ae60' : colors.textMuted }
                                         ]}
                                     >
-                                        {password.length}/6 characters
+                                        {password.length}/{PASSWORD_MIN_LENGTH}+ characters
                                     </ThemedText>
                                 </View>
                                 <View
@@ -207,9 +208,15 @@ export default function ResetPasswordScreen() {
                                     <TextInput
                                         value={password}
                                         onChangeText={setPassword}
-                                        placeholder="Min. 6 characters"
+                                        placeholder={PASSWORD_REQUIREMENTS_LABEL}
                                         placeholderTextColor={colors.textMuted}
                                         secureTextEntry
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                        textContentType={Platform.OS === 'ios' ? 'newPassword' : undefined}
+                                        autoComplete={Platform.OS === 'android' ? 'new-password' : undefined}
+                                        passwordRules={Platform.OS === 'ios' ? IOS_PASSWORD_RULES : undefined}
+                                        importantForAutofill="yes"
                                         style={[styles.input, { color: colors.textMain }]}
                                     />
                                 </View>
@@ -240,12 +247,18 @@ export default function ResetPasswordScreen() {
                                         placeholder="Re-enter password"
                                         placeholderTextColor={colors.textMuted}
                                         secureTextEntry
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                        textContentType={Platform.OS === 'ios' ? 'newPassword' : undefined}
+                                        autoComplete={Platform.OS === 'android' ? 'new-password' : undefined}
+                                        passwordRules={Platform.OS === 'ios' ? IOS_PASSWORD_RULES : undefined}
+                                        importantForAutofill="yes"
                                         style={[styles.input, { color: colors.textMain }]}
                                     />
                                 </View>
 
                                 {/* Password Mismatch Feedback */}
-                                {showConfirmValidation && confirmPassword.trim() !== '' && !doPasswordsMatch && (
+                                {showConfirmValidation && confirmPassword !== '' && !doPasswordsMatch && (
                                     <View style={styles.validationFeedback}>
                                         <View style={styles.validationRow}>
                                             <MaterialIcons name="error-outline" size={16} color="#e74c3c" />

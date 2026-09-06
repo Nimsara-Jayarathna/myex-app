@@ -1,5 +1,6 @@
 import { API_VERSION, apiClient, apiRequest } from '@/api/client';
 import type { SummaryResponse, Transaction, TransactionInput } from '@/types';
+import { createClientId } from '@/utils/identifiers';
 
 type TransactionApiShape = Transaction & {
   _id?: string;
@@ -80,14 +81,21 @@ export const getTransactionsFiltered = async (filters: TransactionFilters = {}) 
   };
 };
 
-export const createTransaction = async (payload: TransactionInput) => {
+export const createTransaction = async (
+  payload: TransactionInput,
+  options: { idempotencyKey?: string; userInitiated?: boolean } = {}
+) => {
+  const idempotencyKey = options.idempotencyKey ?? createClientId();
   const data = await apiRequest<TransactionApiShape | { transaction: TransactionApiShape }>(
     {
       method: 'post',
       url: `/api/${API_VERSION}/transactions`,
       data: payload,
+      headers: {
+        'Idempotency-Key': idempotencyKey,
+      },
     },
-    { userInitiated: true }
+    { userInitiated: options.userInitiated ?? true, retryCount: 0 }
   );
 
   if (!data) {

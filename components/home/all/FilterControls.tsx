@@ -108,7 +108,10 @@ export function FilterControls({ filters, categories, onChange }: Props) {
             ]}>
             <View style={styles.modalHeader}>
               <ThemedText type="subtitle" style={styles.modalTitle}>Select Category</ThemedText>
-              <Pressable onPress={() => setIsCatModalOpen(false)}>
+              <Pressable
+                onPress={() => setIsCatModalOpen(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close category picker">
                 <MaterialIcons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
@@ -236,6 +239,8 @@ const DateSelector = ({ value, onChange }: { value: string; onChange: (d: string
     <>
       <Pressable
         onPress={() => setShow(true)}
+        accessibilityRole="button"
+        accessibilityLabel={`Select date, currently ${value}`}
         style={[
           styles.dateInputWrapper,
           { backgroundColor: colors.surface2, borderColor: colors.borderSoft },
@@ -260,7 +265,11 @@ const DateSelector = ({ value, onChange }: { value: string; onChange: (d: string
                   onChange={onMobileChange}
                   textColor={resolvedTheme === 'dark' ? '#f1f5f9' : '#0f172a'}
                 />
-                <Pressable onPress={() => setShow(false)} style={styles.iosDoneBtn}>
+                <Pressable
+                  onPress={() => setShow(false)}
+                  style={styles.iosDoneBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Done selecting date">
                   <ThemedText style={{ color: colors.primaryAccent, fontWeight: 'bold' }}>
                     Done
                   </ThemedText>

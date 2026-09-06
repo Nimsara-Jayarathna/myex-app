@@ -27,6 +27,8 @@ import { useOffline } from '@/context/OfflineContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
 import type { Transaction } from '@/types';
+import { subtractMoney, sumMoney } from '@/utils/money';
+import { getTransactionKey } from '@/utils/transaction-key';
 // eslint-disable-next-line import/no-unresolved
 import { deleteTransactionByLocalId, getLocalTransactionsByDate, initDb, type LocalTransactionRow } from '@/utils/local-db';
 
@@ -79,34 +81,16 @@ export default function TodayScreen() {
   });
 
   const { transactions, income, expense, balance } = useMemo(() => {
-    if (offlineMode) {
-      const items = localRows ?? [];
-      let inc = 0;
-      let exp = 0;
-      items.forEach((item: any) => {
-        if (item.type === 'income') inc += item.amount;
-        else if (item.type === 'expense') exp += item.amount;
-      });
-      return {
-        transactions: items,
-        income: inc,
-        expense: exp,
-        balance: inc - exp,
-      };
-    }
-
-    const items = todayData?.transactions ?? [];
-    let inc = 0;
-    let exp = 0;
-    items.forEach(item => {
-      if (item.type === 'income') inc += item.amount;
-      else if (item.type === 'expense') exp += item.amount;
-    });
+    const items = offlineMode ? (localRows ?? []) : (todayData?.transactions ?? []);
+    const incomeValues = items.filter(item => item.type === 'income').map(item => item.amount);
+    const expenseValues = items.filter(item => item.type === 'expense').map(item => item.amount);
+    const incomeTotal = sumMoney(incomeValues);
+    const expenseTotal = sumMoney(expenseValues);
     return {
       transactions: items,
-      income: inc,
-      expense: exp,
-      balance: inc - exp,
+      income: incomeTotal,
+      expense: expenseTotal,
+      balance: subtractMoney(incomeTotal, expenseTotal),
     };
   }, [offlineMode, todayData, localRows]);
 
@@ -210,9 +194,7 @@ export default function TodayScreen() {
           <Pressable style={styles.listWrapper} onPress={() => setOpenNoteId(null)}>
             <Animated.FlatList
               data={transactions}
-              keyExtractor={(item: any) =>
-                item.localId ?? item._id ?? item.id ?? Math.random().toString()
-              }
+              keyExtractor={(item: any, index) => getTransactionKey(item as Transaction, index)}
 
               // Apply Threshold Logic
               scrollEnabled={canScroll}
@@ -245,6 +227,7 @@ export default function TodayScreen() {
                   const row = item as LocalTransactionRow;
                   const localTransaction: Transaction = {
                     id: row.localId,
+                    localId: row.localId,
                     amount: row.amount,
                     type: row.type,
                     category: row.categoryName ?? row.categoryId,

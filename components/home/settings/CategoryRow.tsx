@@ -49,7 +49,9 @@ export function CategoryRow({
             isDefault && styles.actionButtonActive,
             { backgroundColor: isDefault ? (isDark ? 'rgba(96, 165, 250, 0.2)' : 'rgba(59, 130, 246, 0.15)') : 'transparent' }
           ]}
+          accessibilityRole="button"
           accessibilityLabel={isDefault ? "Default category" : "Set as default"}
+          accessibilityState={{ disabled: isDefault, selected: isDefault }}
         >
           <MaterialIcons 
             name={isDefault ? "star" : "star-outline"} 
@@ -62,7 +64,9 @@ export function CategoryRow({
           onPress={onDelete}
           disabled={!canDelete || isDeleting}
           style={[styles.actionButton, styles.deleteButton]}
+          accessibilityRole="button"
           accessibilityLabel="Delete category"
+          accessibilityState={{ disabled: !canDelete || isDeleting }}
         >
           {isDeleting ? (
             <ActivityIndicator size="small" color="#ef4444" />

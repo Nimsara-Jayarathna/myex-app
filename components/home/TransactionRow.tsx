@@ -6,6 +6,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { useAuthStore } from '@/context/auth-store';
 import { useAppTheme } from '@/context/ThemeContext';
+import type { Transaction } from '@/types';
+import { formatMoney } from '@/utils/money';
 
 // ...
 
@@ -107,7 +109,7 @@ export function TransactionRow({
       <View style={styles.rightSection}>
         <View style={styles.amountColumn}>
           <ThemedText style={[styles.amount, { color: statusColor }]}>
-            {isIncome ? '+' : '-'}{currencySymbol}{Math.abs(transaction.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {isIncome ? '+' : '-'}{formatMoney(transaction.amount, currencySymbol)}
           </ThemedText>
 
           {/* MODE SWITCH: Show Date Capsule only in 'All' view */}
@@ -128,6 +130,8 @@ export function TransactionRow({
               const id = transaction.id || transaction._id;
               if (id) onDelete?.(id);
             }}
+            accessibilityRole="button"
+            accessibilityLabel="Delete transaction"
             style={({ pressed }) => [
               styles.deleteBtn,
               { opacity: pressed ? 0.6 : 1 }

@@ -16,7 +16,7 @@ export default function CurrencySettingsScreen() {
     const router = useRouter();
     const { colors } = useAppTheme();
     const queryClient = useQueryClient();
-    const { user, setAuth } = useAuthStore();
+    const { user, updateUser } = useAuthStore();
 
     const [blockingState, setBlockingState] = useState<BlockingState>('idle');
     const [blockingMessage, setBlockingMessage] = useState<string | undefined>(undefined);
@@ -34,7 +34,7 @@ export default function CurrencySettingsScreen() {
             setBlockingState('loading');
             setBlockingMessage('Updating currency...');
         },
-        onSuccess: (newCurrency, variables, context) => {
+        onSuccess: (newCurrency) => {
             // Check if API returns a message wrapper (v1.1) or just the object
             // The API reference says: { success: true, message: "...", data: { currency: ... } }
             // So `newCurrency` might be the response wrapper or the currency itself depending on the api function adapter.
@@ -50,9 +50,7 @@ export default function CurrencySettingsScreen() {
                 // Manually patch local user state
                 if (user) {
                     const currencyData = (newCurrency as any).data?.currency || newCurrency;
-                    const updatedUser = { ...user, currency: currencyData };
-                    // Fix: Type cast to any or use partial update if supported
-                    setAuth({ user: updatedUser } as any);
+                    updateUser({ currency: currencyData });
                 }
                 queryClient.invalidateQueries({ queryKey: ['user', 'profile'] });
                 queryClient.invalidateQueries({ queryKey: ['currencies'] });
@@ -70,7 +68,6 @@ export default function CurrencySettingsScreen() {
 
     const handleSelect = (currency: Currency) => {
         const id = currency.id ?? currency._id;
-        console.log('Selecting currency:', { name: currency.name, id, originalId: currency.id, _id: currency._id });
         if (mutation.isPending || !id) return;
         mutation.mutate(id);
     };

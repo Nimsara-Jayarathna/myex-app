@@ -31,7 +31,11 @@ export default function ProfileDetailsScreen() {
               <ThemedText style={[styles.label, { color: colors.textMuted }]}>Name</ThemedText>
               <ThemedText style={styles.value}>{user?.fname} {user?.lname}</ThemedText>
             </View>
-            <Pressable onPress={() => setShowEditName(true)} style={styles.editBtn}>
+            <Pressable
+              onPress={() => setShowEditName(true)}
+              style={styles.editBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Edit name">
               <MaterialIcons name="edit" size={20} color={colors.primaryAccent} />
             </Pressable>
           </View>
@@ -43,7 +47,11 @@ export default function ProfileDetailsScreen() {
               <ThemedText style={[styles.label, { color: colors.textMuted }]}>Email</ThemedText>
               <ThemedText style={styles.value}>{user?.email}</ThemedText>
             </View>
-            <Pressable onPress={() => setShowChangeEmail(true)} style={styles.editBtn}>
+            <Pressable
+              onPress={() => setShowChangeEmail(true)}
+              style={styles.editBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Change email">
               <MaterialIcons name="edit" size={20} color={colors.primaryAccent} />
             </Pressable>
           </View>

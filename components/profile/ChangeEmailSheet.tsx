@@ -17,6 +17,7 @@ import {
     changeEmailRequestNew,
     changeEmailVerifyCurrent,
 } from '@/api/auth';
+import { OtpInput } from '@/components/auth/OtpInput';
 import { ThemedText } from '@/components/themed-text';
 import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import { useAppTheme } from '@/context/ThemeContext';
@@ -34,17 +35,16 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
     const { user, updateUser } = useAuth();
 
     const [step, setStep] = useState<Step>('init');
-    const [currentOtpDigits, setCurrentOtpDigits] = useState(['', '', '', '', '', '']);
+    const [currentOtp, setCurrentOtp] = useState('');
     const [newEmail, setNewEmail] = useState('');
-    const [newOtpDigits, setNewOtpDigits] = useState(['', '', '', '', '', '']);
+    const [newOtp, setNewOtp] = useState('');
 
     // Email validation
     const [emailTouched, setEmailTouched] = useState(false);
     const [showEmailValidation, setShowEmailValidation] = useState(false);
 
-    // OTP Input Refs
-    const currentOtpRefs = useRef<(TextInput | null)[]>([]);
-    const newOtpRefs = useRef<(TextInput | null)[]>([]);
+    const lastCurrentOtpRef = useRef('');
+    const lastNewOtpRef = useRef('');
 
     // Temporary tokens
     const [changeToken, setChangeToken] = useState('');
@@ -60,7 +60,7 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
 
     // Timer effect
     useEffect(() => {
-        let interval: NodeJS.Timeout;
+        let interval: ReturnType<typeof setInterval>;
         if (resendTimer > 0) {
             interval = setInterval(() => {
                 setResendTimer((prev) => {
@@ -89,18 +89,11 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
         return () => clearTimeout(timer);
     }, [newEmail, emailTouched]);
 
-    // Start timer when entering OTP steps
+    // Start timer when entering OTP steps. OtpInput handles focus and AutoFill.
     useEffect(() => {
         if (step === 'verify-current' || step === 'confirm-new') {
             setResendTimer(60);
             setCanResend(false);
-            setTimeout(() => {
-                if (step === 'verify-current') {
-                    currentOtpRefs.current[0]?.focus();
-                } else {
-                    newOtpRefs.current[0]?.focus();
-                }
-            }, 300);
         }
     }, [step]);
 
@@ -113,52 +106,6 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
     };
 
     const isEmailValid = isValidEmail(newEmail);
-
-    // OTP Handlers
-    const handleOtpChange = (value: string, index: number, isCurrentEmail: boolean) => {
-        const numericValue = value.replace(/[^0-9]/g, '');
-        const otpDigits = isCurrentEmail ? currentOtpDigits : newOtpDigits;
-        const setOtpDigits = isCurrentEmail ? setCurrentOtpDigits : setNewOtpDigits;
-        const otpRefs = isCurrentEmail ? currentOtpRefs : newOtpRefs;
-
-        if (numericValue.length === 0) {
-            const newOtpDigits = [...otpDigits];
-            newOtpDigits[index] = '';
-            setOtpDigits(newOtpDigits);
-            return;
-        }
-
-        if (numericValue.length > 1) {
-            // Handle paste
-            const digits = numericValue.slice(0, 6).split('');
-            const newOtpDigits = [...otpDigits];
-            digits.forEach((digit, i) => {
-                if (index + i < 6) {
-                    newOtpDigits[index + i] = digit;
-                }
-            });
-            setOtpDigits(newOtpDigits);
-            const nextIndex = Math.min(index + digits.length - 1, 5);
-            otpRefs.current[nextIndex]?.focus();
-        } else {
-            // Single digit
-            const newOtpDigits = [...otpDigits];
-            newOtpDigits[index] = numericValue;
-            setOtpDigits(newOtpDigits);
-            if (index < 5) {
-                otpRefs.current[index + 1]?.focus();
-            }
-        }
-    };
-
-    const handleOtpKeyPress = (e: any, index: number, isCurrentEmail: boolean) => {
-        const otpDigits = isCurrentEmail ? currentOtpDigits : newOtpDigits;
-        const otpRefs = isCurrentEmail ? currentOtpRefs : newOtpRefs;
-
-        if (e.nativeEvent.key === 'Backspace' && !otpDigits[index] && index > 0) {
-            otpRefs.current[index - 1]?.focus();
-        }
-    };
 
     // --- Mutations ---
 
@@ -213,11 +160,9 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
 
             // Clear OTP on error
             setTimeout(() => {
-                setCurrentOtpDigits(['', '', '', '', '', '']);
+                setCurrentOtp('');
+                lastCurrentOtpRef.current = '';
                 setBlockingState('idle');
-                setTimeout(() => {
-                    currentOtpRefs.current[0]?.focus();
-                }, 100);
             }, 2000);
         }
     });
@@ -262,9 +207,11 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
                 updateUser({ email: data.email });
                 onClose();
                 setStep('init');
-                setCurrentOtpDigits(['', '', '', '', '', '']);
+                setCurrentOtp('');
                 setNewEmail('');
-                setNewOtpDigits(['', '', '', '', '', '']);
+                setNewOtp('');
+                lastCurrentOtpRef.current = '';
+                lastNewOtpRef.current = '';
             }, 1500);
         },
         onError: (error: any) => {
@@ -276,33 +223,39 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
 
             // Clear OTP on error
             setTimeout(() => {
-                setNewOtpDigits(['', '', '', '', '', '']);
+                setNewOtp('');
+                lastNewOtpRef.current = '';
                 setBlockingState('idle');
-                setTimeout(() => {
-                    newOtpRefs.current[0]?.focus();
-                }, 100);
             }, 2000);
         }
     });
 
-    // Auto-verify when all 6 digits are entered
+    // Auto-verify once per complete code.
     useEffect(() => {
-        if (step === 'verify-current' && currentOtpDigits.every(digit => digit !== '')) {
-            const otp = currentOtpDigits.join('');
-            if (otp.length === 6 && !verifyCurrentMutation.isPending) {
-                verifyCurrentMutation.mutate({ otp });
-            }
+        if (currentOtp.length < 6) lastCurrentOtpRef.current = '';
+        if (
+            step === 'verify-current' &&
+            currentOtp.length === 6 &&
+            !verifyCurrentMutation.isPending &&
+            currentOtp !== lastCurrentOtpRef.current
+        ) {
+            lastCurrentOtpRef.current = currentOtp;
+            verifyCurrentMutation.mutate({ otp: currentOtp });
         }
-    }, [currentOtpDigits, step, verifyCurrentMutation]);
+    }, [currentOtp, step, verifyCurrentMutation]);
 
     useEffect(() => {
-        if (step === 'confirm-new' && newOtpDigits.every(digit => digit !== '')) {
-            const otp = newOtpDigits.join('');
-            if (otp.length === 6 && !confirmNewMutation.isPending) {
-                confirmNewMutation.mutate({ otp });
-            }
+        if (newOtp.length < 6) lastNewOtpRef.current = '';
+        if (
+            step === 'confirm-new' &&
+            newOtp.length === 6 &&
+            !confirmNewMutation.isPending &&
+            newOtp !== lastNewOtpRef.current
+        ) {
+            lastNewOtpRef.current = newOtp;
+            confirmNewMutation.mutate({ otp: newOtp });
         }
-    }, [newOtpDigits, step, confirmNewMutation]);
+    }, [newOtp, step, confirmNewMutation]);
 
     // --- Handlers ---
 
@@ -316,7 +269,7 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
                 setErrorMessage('Enter valid email.');
                 return;
             }
-            requestNewMutation.mutate({ changeToken, newEmail });
+            requestNewMutation.mutate({ changeToken, newEmail: newEmail.trim() });
         }
     };
 
@@ -324,11 +277,13 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
         if (!canResend) return;
 
         if (step === 'verify-current') {
-            setCurrentOtpDigits(['', '', '', '', '', '']);
+            setCurrentOtp('');
+            lastCurrentOtpRef.current = '';
             initMutation.mutate();
         } else if (step === 'confirm-new') {
-            setNewOtpDigits(['', '', '', '', '', '']);
-            requestNewMutation.mutate({ changeToken, newEmail });
+            setNewOtp('');
+            lastNewOtpRef.current = '';
+            requestNewMutation.mutate({ changeToken, newEmail: newEmail.trim() });
         }
     };
 
@@ -348,7 +303,7 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
 
                     <View style={styles.header}>
                         <ThemedText style={[styles.title, { color: colors.textMain }]}>Change Email</ThemedText>
-                        <Pressable onPress={onClose} style={styles.closeBtn}>
+                        <Pressable onPress={onClose} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Close change email">
                             <MaterialIcons name="close" size={24} color={colors.textMuted} />
                         </Pressable>
                     </View>
@@ -372,32 +327,13 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
                                     Enter 6-Digit Code (Current Email)
                                 </ThemedText>
 
-                                {/* OTP Input Boxes */}
-                                <View style={styles.otpContainer}>
-                                    {currentOtpDigits.map((digit, index) => (
-                                        <View
-                                            key={index}
-                                            style={[
-                                                styles.otpBox,
-                                                {
-                                                    backgroundColor: colors.inputBg,
-                                                    borderColor: digit ? colors.primaryAccent : colors.inputBorder,
-                                                    borderWidth: digit ? 2 : 1,
-                                                },
-                                            ]}
-                                        >
-                                            <TextInput
-                                                ref={(ref) => { currentOtpRefs.current[index] = ref; }}
-                                                value={digit}
-                                                onChangeText={(value) => handleOtpChange(value, index, true)}
-                                                onKeyPress={(e) => handleOtpKeyPress(e, index, true)}
-                                                keyboardType="number-pad"
-                                                selectTextOnFocus
-                                                style={[styles.otpInput, { color: colors.textMain }]}
-                                            />
-                                        </View>
-                                    ))}
-                                </View>
+                                <OtpInput
+                                    value={currentOtp}
+                                    onChangeText={setCurrentOtp}
+                                    autoFocus
+                                    disabled={verifyCurrentMutation.isPending}
+                                    accessibilityLabel="Current email verification code"
+                                />
                             </View>
 
                             {/* Resend Link */}
@@ -438,6 +374,10 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
                                 placeholder="new@example.com"
                                 keyboardType="email-address"
                                 autoCapitalize="none"
+                                autoCorrect={false}
+                                textContentType={Platform.OS === 'ios' ? 'emailAddress' : undefined}
+                                autoComplete={Platform.OS === 'android' ? 'email' : undefined}
+                                importantForAutofill="yes"
                                 style={[styles.input, { color: colors.textMain, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
                             />
 
@@ -462,32 +402,13 @@ export function ChangeEmailSheet({ visible, onClose }: ChangeEmailSheetProps) {
                                     Enter 6-Digit Code (New Email)
                                 </ThemedText>
 
-                                {/* OTP Input Boxes */}
-                                <View style={styles.otpContainer}>
-                                    {newOtpDigits.map((digit, index) => (
-                                        <View
-                                            key={index}
-                                            style={[
-                                                styles.otpBox,
-                                                {
-                                                    backgroundColor: colors.inputBg,
-                                                    borderColor: digit ? colors.primaryAccent : colors.inputBorder,
-                                                    borderWidth: digit ? 2 : 1,
-                                                },
-                                            ]}
-                                        >
-                                            <TextInput
-                                                ref={(ref) => { newOtpRefs.current[index] = ref; }}
-                                                value={digit}
-                                                onChangeText={(value) => handleOtpChange(value, index, false)}
-                                                onKeyPress={(e) => handleOtpKeyPress(e, index, false)}
-                                                keyboardType="number-pad"
-                                                selectTextOnFocus
-                                                style={[styles.otpInput, { color: colors.textMain }]}
-                                            />
-                                        </View>
-                                    ))}
-                                </View>
+                                <OtpInput
+                                    value={newOtp}
+                                    onChangeText={setNewOtp}
+                                    autoFocus
+                                    disabled={confirmNewMutation.isPending}
+                                    accessibilityLabel="New email verification code"
+                                />
                             </View>
 
                             {/* Resend Link */}

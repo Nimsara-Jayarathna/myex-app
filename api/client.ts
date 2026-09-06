@@ -6,7 +6,6 @@ import { isNetworkOrTimeoutError, withRetry } from '@/utils/api-retry';
 import { clearDb } from '@/utils/local-db';
 import { logDebug, logError } from '@/utils/logger';
 import { triggerOfflinePrompt } from '@/utils/offline-prompt';
-import { runFullSync } from '@/utils/sync-service';
 
 const normalizeBaseUrl = (value: string) => value.replace(/\/+$/, '');
 
@@ -35,18 +34,6 @@ export const apiClient = axios.create({
 });
 
 type RetriableRequest = InternalAxiosRequestConfig & { _retry?: boolean };
-
-const sanitizeRequestData = (data: unknown) => {
-  if (!data || typeof data !== 'object') {
-    return data;
-  }
-
-  if ('password' in data) {
-    return { ...(data as Record<string, unknown>), password: '[redacted]' };
-  }
-
-  return data;
-};
 
 const isAuthErrorStatus = (status?: number) => status === 401 || status === 419;
 
@@ -111,8 +98,8 @@ apiClient.interceptors.response.use(
               setCookieHeaders.push(...cookieParts);
             });
           }
-        } catch (e) {
-          // Silently fall back to parsed headers
+        } catch {
+          // Fall back to Axios-parsed headers.
         }
       }
 
@@ -124,24 +111,20 @@ apiClient.interceptors.response.use(
         } else if (typeof parsed === 'string') {
           setCookieHeaders = [parsed];
         }
-
       }
-
 
       if (setCookieHeaders.length > 0) {
         // Extract only the 'name=value' part from each Set-Cookie string
-        const cleanCookies = setCookieHeaders.map(c => c.split(';')[0]);
+        const cleanCookies = setCookieHeaders.map(c => c.split(';', 1)[0]?.trim()).filter(Boolean) as string[];
 
         useAuthStore.getState().setCookies(cleanCookies);
-        logDebug('Captured Cookies', { count: cleanCookies.length, cookies: cleanCookies });
+        logDebug('Captured auth cookies', { count: cleanCookies.length });
       }
     }
 
     logDebug('API Response', {
       url: response.config.url,
       status: response.status,
-      data: response.data,
-      headers: response.headers,
     });
     return response;
   },
@@ -192,7 +175,7 @@ apiClient.interceptors.request.use(
     logDebug('API Request', {
       url: request.url,
       method: request.method,
-      data: sanitizeRequestData(request.data),
+      data: request.data,
       headers: request.headers,
     });
     return request;
@@ -213,7 +196,9 @@ export const apiRequest = async <T>(
   config: AxiosRequestConfig,
   options: ApiRequestOptions = {}
 ) => {
-  const retries = options.retryCount ?? 1;
+  const method = (config.method ?? 'get').toLowerCase();
+  const isSafeMethod = ['get', 'head', 'options'].includes(method);
+  const retries = options.retryCount ?? (isSafeMethod ? 1 : 0);
   const timeout = options.timeoutMs ?? 8000;
 
   try {

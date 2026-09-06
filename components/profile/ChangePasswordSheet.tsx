@@ -15,6 +15,7 @@ import { changePassword } from '@/api/auth';
 import { ThemedText } from '@/components/themed-text';
 import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import { useAppTheme } from '@/context/ThemeContext';
+import { IOS_PASSWORD_RULES, isStrongPassword, PASSWORD_MIN_LENGTH, PASSWORD_REQUIREMENTS_LABEL } from '@/utils/password-policy';
 
 interface ChangePasswordSheetProps {
     visible: boolean;
@@ -35,9 +36,9 @@ export function ChangePasswordSheet({ visible, onClose }: ChangePasswordSheetPro
     // Validation
     const passwordsMatch = newPassword === confirmNewPassword;
     const isFormValid =
-        currentPassword.trim().length > 0 &&
-        newPassword.trim().length >= 6 &&
-        confirmNewPassword.trim().length >= 6 &&
+        currentPassword.length > 0 &&
+        isStrongPassword(newPassword) &&
+        confirmNewPassword.length > 0 &&
         passwordsMatch;
 
     const mutation = useMutation({
@@ -72,8 +73,8 @@ export function ChangePasswordSheet({ visible, onClose }: ChangePasswordSheetPro
             setErrorMessage('All fields are required.');
             return;
         }
-        if (newPassword.length < 6) {
-            setErrorMessage('New password must be at least 6 characters.');
+        if (!isStrongPassword(newPassword)) {
+            setErrorMessage(`${PASSWORD_REQUIREMENTS_LABEL}.`);
             return;
         }
         if (newPassword !== confirmNewPassword) {
@@ -100,7 +101,7 @@ export function ChangePasswordSheet({ visible, onClose }: ChangePasswordSheetPro
 
                     <View style={styles.header}>
                         <ThemedText style={[styles.title, { color: colors.textMain }]}>Change Password</ThemedText>
-                        <Pressable onPress={onClose} style={styles.closeBtn}>
+                        <Pressable onPress={onClose} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Close change password">
                             <MaterialIcons name="close" size={24} color={colors.textMuted} />
                         </Pressable>
                     </View>
@@ -115,6 +116,11 @@ export function ChangePasswordSheet({ visible, onClose }: ChangePasswordSheetPro
                             value={currentPassword}
                             onChangeText={setCurrentPassword}
                             secureTextEntry
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            textContentType={Platform.OS === 'ios' ? 'password' : undefined}
+                            autoComplete={Platform.OS === 'android' ? 'current-password' : undefined}
+                            importantForAutofill="yes"
                             style={[styles.input, { color: colors.textMain, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
                         />
                     </View>
@@ -124,16 +130,24 @@ export function ChangePasswordSheet({ visible, onClose }: ChangePasswordSheetPro
                             <ThemedText
                                 style={[
                                     styles.charCounter,
-                                    { color: newPassword.length >= 6 ? '#27ae60' : colors.textMuted }
+                                    { color: isStrongPassword(newPassword) ? '#27ae60' : colors.textMuted }
                                 ]}
                             >
-                                {newPassword.length}/6 characters
+                                {newPassword.length}/{PASSWORD_MIN_LENGTH}+ characters
                             </ThemedText>
                         </View>
                         <TextInput
                             value={newPassword}
                             onChangeText={setNewPassword}
                             secureTextEntry
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            placeholder={PASSWORD_REQUIREMENTS_LABEL}
+                            placeholderTextColor={colors.textMuted}
+                            textContentType={Platform.OS === 'ios' ? 'newPassword' : undefined}
+                            autoComplete={Platform.OS === 'android' ? 'new-password' : undefined}
+                            passwordRules={Platform.OS === 'ios' ? IOS_PASSWORD_RULES : undefined}
+                            importantForAutofill="yes"
                             style={[styles.input, { color: colors.textMain, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
                         />
                     </View>
@@ -143,6 +157,12 @@ export function ChangePasswordSheet({ visible, onClose }: ChangePasswordSheetPro
                             value={confirmNewPassword}
                             onChangeText={setConfirmNewPassword}
                             secureTextEntry
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            textContentType={Platform.OS === 'ios' ? 'newPassword' : undefined}
+                            autoComplete={Platform.OS === 'android' ? 'new-password' : undefined}
+                            passwordRules={Platform.OS === 'ios' ? IOS_PASSWORD_RULES : undefined}
+                            importantForAutofill="yes"
                             style={[styles.input, { color: colors.textMain, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
                         />
 

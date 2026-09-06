@@ -16,6 +16,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/context/ThemeContext';
 import type { GroupedSection } from '@/hooks/home/useTransactionLogic';
 import type { Transaction } from '@/types';
+import { getTransactionKey } from '@/utils/transaction-key';
 
 // FIX: Create the animated component with a type cast to preserve Generics
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
@@ -61,7 +62,7 @@ export function TransactionList({
         // FIX: Cast sections to any to bypass SectionList's strict internal type check
         sections={groupedData as any}
         // FIX: Use 'any' for the item here to satisfy the generic requirement
-        keyExtractor={(item: any) => item._id ?? item.id ?? Math.random().toString()}
+        keyExtractor={(item: Transaction, index: number) => getTransactionKey(item, index)}
         ListHeaderComponent={HeaderComponent}
         showsVerticalScrollIndicator={false}
         // FIX: Explicitly type the section info object
@@ -125,7 +126,7 @@ export function TransactionList({
   return (
     <Animated.FlatList
       data={data}
-      keyExtractor={(item: any) => item._id ?? item.id ?? Math.random().toString()}
+      keyExtractor={(item: Transaction, index: number) => getTransactionKey(item, index)}
       ListHeaderComponent={HeaderComponent}
       renderItem={({ item }: any) => {
         const txn = item as Transaction;

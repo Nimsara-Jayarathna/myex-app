@@ -55,6 +55,9 @@ export function SortGroupControls({
           <View style={styles.directionGroup}>
             <Pressable
               onPress={() => onChangeFilter({ ...filters, sortDirection: 'asc' })}
+              accessibilityRole="button"
+              accessibilityLabel="Sort ascending"
+              accessibilityState={{ selected: filters.sortDirection === 'asc' }}
               style={[
                 styles.iconButton,
                 filters.sortDirection === 'asc' && { backgroundColor: colors.primaryAccent },
@@ -68,6 +71,9 @@ export function SortGroupControls({
             </Pressable>
             <Pressable
               onPress={() => onChangeFilter({ ...filters, sortDirection: 'desc' })}
+              accessibilityRole="button"
+              accessibilityLabel="Sort descending"
+              accessibilityState={{ selected: filters.sortDirection === 'desc' }}
               style={[
                 styles.iconButton,
                 filters.sortDirection === 'desc' && { backgroundColor: colors.primaryAccent },

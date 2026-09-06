@@ -5,6 +5,7 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { BlurView } from 'expo-blur';
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
+import { formatMoney } from '@/utils/money';
 
 // ...
 
@@ -25,10 +26,6 @@ export function SummaryCard({ income, expense, balance }: SummaryCardProps) {
   const blurIntensity = isDark ? 40 : 65;
   const androidFallbackOverlay = isDark ? 'rgba(2, 6, 23, 0.7)' : 'rgba(226, 232, 240, 0.6)';
   const dividerColor = isDark ? 'rgba(255, 255, 255, 0.08)' : colors.borderSoft;
-  // Safe formatting helper
-  const formatMoney = (val: number) =>
-    `${currencySymbol}${(Number.isFinite(val) ? Math.abs(val) : 0).toFixed(2)}`;
-
   const cardBorderColor =
     Platform.OS === 'android'
       ? isDark
@@ -68,7 +65,7 @@ export function SummaryCard({ income, expense, balance }: SummaryCardProps) {
             styles.balanceValue,
             { color: balance >= 0 ? colors.primaryAccent : expenseColor },
           ]}>
-          {balance < 0 ? '-' : ''}{formatMoney(balance)}
+          {balance < 0 ? '-' : ''}{formatMoney(balance, currencySymbol)}
         </ThemedText>
       </View>
 
@@ -80,7 +77,7 @@ export function SummaryCard({ income, expense, balance }: SummaryCardProps) {
             Income
           </ThemedText>
           <ThemedText style={[styles.incomeValue, { color: incomeColor }]}>
-            {formatMoney(income)}
+            {formatMoney(income, currencySymbol)}
           </ThemedText>
         </View>
 
@@ -91,7 +88,7 @@ export function SummaryCard({ income, expense, balance }: SummaryCardProps) {
             Expense
           </ThemedText>
           <ThemedText style={[styles.expenseValue, { color: expenseColor }]}>
-            {formatMoney(expense)}
+            {formatMoney(expense, currencySymbol)}
           </ThemedText>
         </View>
       </View>

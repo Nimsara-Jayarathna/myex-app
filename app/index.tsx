@@ -1,5 +1,4 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -17,33 +16,21 @@ import { apiClient } from '@/api/client';
 import { HomeBackground } from '@/components/home/HomeBackground';
 import { ThemedText } from '@/components/themed-text';
 import { useOffline } from '@/context/OfflineContext';
+import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
+import type { UserProfile } from '@/types';
 import { isAuthError, isNetworkOrTimeoutError, withRetry } from '@/utils/api-retry';
 // eslint-disable-next-line import/no-unresolved
 import { getLocalProfile, initDb } from '@/utils/local-db';
 
 const ACCENT_COLOR = '#3498db';
-const SESSION_CACHE_KEY = 'has_valid_session';
-
 export default function IndexScreen() {
   const router = useRouter();
-  const { setAuth, logout, setHasValidSession } = useAuth();
+  const { setAuth, logout, hydrateOfflineAuth, restoreSessionMetadata } = useAuth();
   const { offlineMode, promptToGoOffline, setIsBooting } = useOffline();
+  const { colors } = useAppTheme();
   const hasNavigatedRef = useRef(false);
-  const sessionCacheLoadedRef = useRef(false);
-  const hasValidSessionRef = useRef(false);
-  const localProfileRef = useRef<null | {
-    id: string;
-    name: string;
-    fname?: string | null;
-    lname?: string | null;
-    email: string;
-    createdAt: string;
-    updatedAt: string;
-    categoryLimit?: number | null;
-    defaultIncomeCategories?: string[];
-    defaultExpenseCategories?: string[];
-  }>(null);
+  const localProfileRef = useRef<UserProfile | null>(null);
 
   // Animation Values
   const logoScale = useSharedValue(0);
@@ -63,24 +50,34 @@ export default function IndexScreen() {
       true
     );
 
-    const loadSessionCache = async () => {
-      if (sessionCacheLoadedRef.current) return;
-      const cached = await AsyncStorage.getItem(SESSION_CACHE_KEY);
-      const isValidSession = cached === 'true';
-      hasValidSessionRef.current = isValidSession;
-      setHasValidSession(isValidSession);
-      sessionCacheLoadedRef.current = true;
-    };
-
     const loadLocalProfile = async () => {
       if (localProfileRef.current) return localProfileRef.current;
       try {
         await initDb();
         const profile = await getLocalProfile();
-        if (profile) {
-          localProfileRef.current = profile;
-        }
-        return profile ?? null;
+        if (!profile) return null;
+        const normalizedProfile: UserProfile = {
+          id: profile.id,
+          name: profile.name,
+          fname: profile.fname ?? undefined,
+          lname: profile.lname ?? undefined,
+          email: profile.email,
+          createdAt: profile.createdAt,
+          updatedAt: profile.updatedAt,
+          categoryLimit: profile.categoryLimit ?? undefined,
+          defaultIncomeCategories: profile.defaultIncomeCategories,
+          defaultExpenseCategories: profile.defaultExpenseCategories,
+          currency: profile.currency_id && profile.currency_name && profile.currency_code && profile.currency_symbol
+            ? {
+                id: profile.currency_id,
+                name: profile.currency_name,
+                code: profile.currency_code,
+                symbol: profile.currency_symbol,
+              }
+            : undefined,
+        };
+        localProfileRef.current = normalizedProfile;
+        return normalizedProfile;
       } catch {
         return null;
       }
@@ -114,9 +111,9 @@ export default function IndexScreen() {
         const minWait = skipMinWait ? Promise.resolve() : new Promise(resolve => setTimeout(resolve, 1500));
         await minWait;
 
-        await loadSessionCache();
+        const hasValidOfflineSession = await restoreSessionMetadata();
         const localProfile = await loadLocalProfile();
-        if (!hasValidSessionRef.current) {
+        if (!hasValidOfflineSession) {
           // If we are not focused (e.g., covered by Login screen), don't redirect/prompt
           // This prevents background 'index' logic from interfering with top-level auth flow.
           // We can check if we are still the root path? 
@@ -147,7 +144,6 @@ export default function IndexScreen() {
 
         if (result.status === 'ok') {
           setAuth(result.authData);
-          await AsyncStorage.setItem(SESSION_CACHE_KEY, 'true');
           hasNavigatedRef.current = true;
           router.replace('/home' as any);
           return;
@@ -155,7 +151,6 @@ export default function IndexScreen() {
 
         if (result.status === 'unauth') {
           logout();
-          await AsyncStorage.setItem(SESSION_CACHE_KEY, 'false');
           promptToGoOffline(
             'You need to be online to sign in.',
             async () => {
@@ -169,7 +164,7 @@ export default function IndexScreen() {
         }
 
         if (result.status === 'network') {
-          const allowOffline = Boolean(localProfile);
+          const allowOffline = hasValidOfflineSession && Boolean(localProfile);
           promptToGoOffline(
             allowOffline
               ? 'Unable to reach the server.'
@@ -178,13 +173,11 @@ export default function IndexScreen() {
               const retryResult = await runSessionCheck();
               if (retryResult.status === 'ok') {
                 setAuth(retryResult.authData);
-                await AsyncStorage.setItem(SESSION_CACHE_KEY, 'true');
                 hasNavigatedRef.current = true;
                 router.replace('/home' as any);
                 return;
               }
               if (retryResult.status === 'unauth') {
-                await AsyncStorage.setItem(SESSION_CACHE_KEY, 'false');
                 // Don't throw - explicitly navigate to welcome so we don't get stuck in the loop
                 // "Connected" success message will show briefly, then we route.
                 hasNavigatedRef.current = true;
@@ -199,7 +192,7 @@ export default function IndexScreen() {
               onConfirm: allowOffline
                 ? () => {
                   if (localProfile) {
-                    setAuth({ user: localProfile });
+                    hydrateOfflineAuth(localProfile);
                   }
                   hasNavigatedRef.current = true;
                   router.replace('/home/today' as any);
@@ -212,12 +205,10 @@ export default function IndexScreen() {
         }
 
         logout();
-        await AsyncStorage.setItem(SESSION_CACHE_KEY, 'false');
         hasNavigatedRef.current = true;
         router.replace('/welcome');
       } catch {
         logout();
-        await AsyncStorage.setItem(SESSION_CACHE_KEY, 'false');
         hasNavigatedRef.current = true;
         router.replace('/welcome');
       }
@@ -225,7 +216,7 @@ export default function IndexScreen() {
 
     setIsBooting(true);
     void checkAuth().finally(() => setIsBooting(false));
-  }, [setAuth, logout, setHasValidSession, offlineMode, promptToGoOffline, setIsBooting, router, loadingOpacity, logoScale]);
+  }, [setAuth, logout, hydrateOfflineAuth, restoreSessionMetadata, offlineMode, promptToGoOffline, setIsBooting, router, loadingOpacity, logoScale]);
 
   useEffect(() => {
     if (offlineMode && !hasNavigatedRef.current) {
@@ -256,13 +247,13 @@ export default function IndexScreen() {
 
         {/* Text */}
         <View style={styles.textWrapper}>
-          <ThemedText type="title" style={styles.title}>Blipzo</ThemedText>
-          <ThemedText style={styles.tagline}>Everything you earn and spend.</ThemedText>
+          <ThemedText type="title" style={[styles.title, { color: colors.textMain }]}>Blipzo</ThemedText>
+          <ThemedText style={[styles.tagline, { color: colors.textMuted }]}>Everything you earn and spend.</ThemedText>
         </View>
 
         {/* Loader Footer */}
         <Animated.View style={[styles.loaderContainer, textStyle]}>
-          <ThemedText style={styles.loaderText}>Setting up your workspace...</ThemedText>
+          <ThemedText style={[styles.loaderText, { color: colors.textSubtle }]}>Setting up your workspace...</ThemedText>
         </Animated.View>
 
       </View>

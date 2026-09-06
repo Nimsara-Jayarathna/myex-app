@@ -91,12 +91,16 @@ export function EditNameSheet({ visible, onClose }: EditNameSheetProps) {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.overlay}
             >
-                <Pressable style={styles.backdrop} onPress={onClose} />
+                <Pressable style={styles.backdrop} onPress={onClose} accessible={false} />
                 <View style={[styles.sheet, { backgroundColor: colors.surface1 }]}>
 
                     <View style={styles.header}>
                         <ThemedText style={[styles.title, { color: colors.textMain }]}>Edit Name</ThemedText>
-                        <Pressable onPress={onClose} style={styles.closeBtn}>
+                        <Pressable
+                            onPress={onClose}
+                            style={styles.closeBtn}
+                            accessibilityRole="button"
+                            accessibilityLabel="Close edit name">
                             <MaterialIcons name="close" size={24} color={colors.textMuted} />
                         </Pressable>
                     </View>

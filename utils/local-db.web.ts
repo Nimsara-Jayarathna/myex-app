@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 
 import type { Category, Transaction } from '@/types';
+import { normalizeMoney } from '@/utils/money';
 
 export type LocalTransactionStatus = 'pending' | 'synced';
 
@@ -51,7 +52,7 @@ const webStore = {
 export const initDb = async () => { };
 
 export const insertPendingTransaction = async (row: LocalTransactionRow) => {
-  webStore.transactions.push(row);
+  webStore.transactions.push({ ...row, amount: normalizeMoney(row.amount) });
 };
 
 export const getPendingTransactions = async () =>
@@ -86,7 +87,7 @@ export const replaceSyncedTransactions = async (transactions: Transaction[]) => 
       localId: serverId,
       serverId,
       type: item.type,
-      amount: item.amount,
+      amount: normalizeMoney(item.amount),
       categoryId: item.categoryId ?? (typeof item.category === 'string' ? item.category : '') ?? '',
       categoryName: item.categoryName ?? (typeof item.category === 'string' ? item.category : null),
       note: item.note ?? null,

@@ -55,8 +55,8 @@ export default function LoginScreen() {
       setBlockingMessage('Logging in...');
       return { email: variables.email };
     },
-    onSuccess: (data, variables, context) => {
-      logDebug('Login mutation success', { data, context });
+    onSuccess: (data) => {
+      logDebug('Login mutation success');
       setBlockingState('success');
       setBlockingMessage('Welcome back!');
       setTimeout(() => {
@@ -65,8 +65,8 @@ export default function LoginScreen() {
         router.replace('/home');
       }, 1500);
     },
-    onError: (error: any, variables, context) => {
-      logError('Login mutation failed', { error, variables, context });
+    onError: (error: any) => {
+      logError('Login mutation failed', error);
       setBlockingState('error');
       const msg = error?.response?.data?.error?.message
         || error?.response?.data?.message
@@ -96,19 +96,19 @@ export default function LoginScreen() {
   };
 
   const isEmailValid = isValidEmail(email);
-  const isFormValid = isEmailValid && password.trim().length > 0;
+  const isFormValid = isEmailValid && password.length > 0;
 
 
 
   const handleSubmit = () => {
-    if (!email.trim() || !password.trim()) {
+    if (!email.trim() || !password) {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setErrorMessage('Please fill in all fields');
       return;
     }
     setErrorMessage(null);
     logDebug('Login request started', { email });
-    loginMutation.mutate({ email, password });
+    loginMutation.mutate({ email: email.trim(), password });
   };
 
   return (
@@ -180,6 +180,10 @@ export default function LoginScreen() {
                       placeholderTextColor={colors.textMuted}
                       keyboardType="email-address"
                       autoCapitalize="none"
+                      autoCorrect={false}
+                      textContentType={Platform.OS === 'ios' ? 'username' : undefined}
+                      autoComplete={Platform.OS === 'android' ? 'email' : undefined}
+                      importantForAutofill="yes"
                       style={[styles.input, { color: colors.textMain }]}
                     />
                   </View>
@@ -220,6 +224,11 @@ export default function LoginScreen() {
                       placeholder="Enter your password"
                       placeholderTextColor={colors.textMuted}
                       secureTextEntry
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      textContentType={Platform.OS === 'ios' ? 'password' : undefined}
+                      autoComplete={Platform.OS === 'android' ? 'current-password' : undefined}
+                      importantForAutofill="yes"
                       style={[styles.input, { color: colors.textMain }]}
                     />
                   </View>

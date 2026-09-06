@@ -117,6 +117,7 @@ export interface Category {
 }
 
 export interface Transaction {
+  localId?: string;
   _id?: string;
   id?: string;
   user?: string;

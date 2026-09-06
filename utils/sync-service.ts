@@ -39,13 +39,16 @@ export const runFullSync = async (profile?: UserProfile) => {
           message: 'Syncing offline records...',
           progress: { current: index + 1, total: pending.length },
         });
-        await createTransaction({
-          amount: item.amount,
-          type: item.type,
-          category: item.categoryId,
-          date: item.date,
-          note: item.note ?? undefined,
-        });
+        await createTransaction(
+          {
+            amount: item.amount,
+            type: item.type,
+            category: item.categoryId,
+            date: item.date,
+            note: item.note ?? undefined,
+          },
+          { idempotencyKey: item.localId, userInitiated: false }
+        );
         await deleteTransactionByLocalId(item.localId);
       } catch {
         // Keep pending item for next sync pass.

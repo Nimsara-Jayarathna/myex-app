@@ -86,7 +86,7 @@ export default function ForgotPasswordScreen() {
 
     // Timer effect for rate limiting
     useEffect(() => {
-        let interval: NodeJS.Timeout;
+        let interval: ReturnType<typeof setInterval>;
         if (resendTimer > 0) {
             interval = setInterval(() => {
                 setResendTimer((prev) => {
@@ -198,6 +198,10 @@ export default function ForgotPasswordScreen() {
                                         placeholderTextColor={colors.textMuted}
                                         keyboardType="email-address"
                                         autoCapitalize="none"
+                                        autoCorrect={false}
+                                        textContentType={Platform.OS === 'ios' ? 'username' : undefined}
+                                        autoComplete={Platform.OS === 'android' ? 'email' : undefined}
+                                        importantForAutofill="yes"
                                         style={[styles.input, { color: colors.textMain }]}
                                     />
                                 </View>

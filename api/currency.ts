@@ -20,7 +20,6 @@ export const getCurrencies = async () => {
 };
 
 export const updateUserCurrency = async (currencyId: string) => {
-    console.log('API Request [updateUserCurrency]:', { currencyId });
     const { data } = await apiClient.put<
         { currency: Currency; message: string } | { data: { currency: Currency }; message: string }
     >(`/api/${API_VERSION}/users/currency`, { currencyId });

@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Dimensions, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -11,8 +11,10 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
+import { useAuthStore } from '@/context/auth-store';
 import { useAppTheme } from '@/context/ThemeContext';
-import { Transaction } from '@/types';
+import type { Transaction } from '@/types';
+import { formatMoney, subtractMoney, sumMoney } from '@/utils/money';
 
 interface FloatingSummaryButtonProps {
   transactions: Transaction[];
@@ -24,6 +26,9 @@ const PADDING = 20;
 
 export function FloatingSummaryButton({ transactions, visible = true }: FloatingSummaryButtonProps) {
   const { colors, resolvedTheme } = useAppTheme();
+  const { width } = useWindowDimensions();
+  const { user } = useAuthStore();
+  const currencySymbol = user?.currency?.symbol ?? '$';
   const [isExpanded, setIsExpanded] = useState(false);
   const [calculating, setCalculating] = useState(false);
   const [stats, setStats] = useState({ income: 0, expense: 0, balance: 0 });
@@ -41,18 +46,13 @@ export function FloatingSummaryButton({ transactions, visible = true }: Floating
       setCalculating(true);
       // Small artificial delay for the "animation" feel and to allow UI to settle
       const timer = setTimeout(() => {
-        const income = transactions
-          .filter(t => t.type === 'income')
-          .reduce((acc, t) => acc + t.amount, 0);
-
-        const expense = transactions
-          .filter(t => t.type === 'expense')
-          .reduce((acc, t) => acc + t.amount, 0);
+        const income = sumMoney(transactions.filter(t => t.type === 'income').map(t => t.amount));
+        const expense = sumMoney(transactions.filter(t => t.type === 'expense').map(t => t.amount));
 
         setStats({
           income,
           expense,
-          balance: income - expense
+          balance: subtractMoney(income, expense),
         });
         setCalculating(false);
       }, 50); // Reduced from 500ms to 50ms for snappier feel
@@ -81,21 +81,14 @@ export function FloatingSummaryButton({ transactions, visible = true }: Floating
   const successColor = '#10b981';
   const errorColor = '#ef4444';
 
-  // Format helper
-  const format = (val: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'decimal',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(val);
-  };
-
   return (
     <>
       <Animated.View style={[styles.fabContainer, fabStyle]}>
         <Pressable
           style={[styles.fab, { backgroundColor: fabBg, shadowColor: colors.borderStrong }]}
           onPress={handlePress}
+          accessibilityRole="button"
+          accessibilityLabel="Open transaction summary"
         >
           <MaterialCommunityIcons name="chart-box-outline" size={26} color="#FFF" />
         </Pressable>
@@ -124,7 +117,7 @@ export function FloatingSummaryButton({ transactions, visible = true }: Floating
           <Animated.View
             entering={FadeIn.springify().damping(18).stiffness(150)}
             exiting={FadeOut.duration(150)}
-            style={styles.cardWrapper}
+            style={[styles.cardWrapper, { width: Math.min(width - 32, 640) }]}
           >
             <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={styles.blurContainer}>
               <View style={[styles.cardContent, { backgroundColor: glassBg, borderColor: colors.borderGlass }]}>
@@ -139,19 +132,19 @@ export function FloatingSummaryButton({ transactions, visible = true }: Floating
                   <View style={styles.item}>
                     <ThemedText style={[styles.label, { color: colors.textMuted }]}>Net Income</ThemedText>
                     <ThemedText style={[styles.value, { color: successColor }]}>
-                      {calculating ? '...' : format(stats.income)}
+                      {calculating ? '...' : formatMoney(stats.income, currencySymbol)}
                     </ThemedText>
                   </View>
                   <View style={styles.item}>
                     <ThemedText style={[styles.label, { color: colors.textMuted }]}>Net Expense</ThemedText>
                     <ThemedText style={[styles.value, { color: errorColor }]}>
-                      {calculating ? '...' : format(stats.expense)}
+                      {calculating ? '...' : formatMoney(stats.expense, currencySymbol)}
                     </ThemedText>
                   </View>
                   <View style={styles.item}>
                     <ThemedText style={[styles.label, { color: colors.textMuted }]}>Net Balance</ThemedText>
                     <ThemedText style={[styles.value, { color: stats.balance >= 0 ? successColor : errorColor }]}>
-                      {calculating ? '...' : format(stats.balance)}
+                      {calculating ? '...' : `${stats.balance < 0 ? '-' : ''}${formatMoney(stats.balance, currencySymbol)}`}
                     </ThemedText>
                   </View>
                 </View>
@@ -201,7 +194,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardWrapper: {
-    width: Dimensions.get('window').width - 32,
     borderRadius: 20,
     overflow: 'hidden',
     shadowColor: '#000',

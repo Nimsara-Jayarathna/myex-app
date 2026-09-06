@@ -102,6 +102,9 @@ export function AddCategoryInput({
           onPress={onAdd}
           disabled={isDisabled}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Add category"
+          accessibilityState={{ disabled: isDisabled, busy: isLoading }}
         >
           {isLoading ? (
             <ActivityIndicator size="small" color="#fff" />

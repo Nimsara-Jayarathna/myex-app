@@ -23,7 +23,6 @@ import { runFullSync } from '@/utils/sync-service';
 
 export const login = async (credentials: LoginRequest) => {
   const { data } = await apiClient.post<AuthResponse>(`/api/v1/auth/login`, credentials);
-  useAuthStore.getState().setHasValidSession(true);
   return data;
 };
 
@@ -43,7 +42,6 @@ export const registerVerify = async (payload: RegisterVerifyRequest) => {
 export const registerComplete = async (payload: RegisterCompleteRequest) => {
   const { data } = await apiClient.post<AuthResponse>(`/api/v1.1/auth/register/complete`, payload);
   const responseData = ('data' in data ? (data as any).data : data) as AuthResponse;
-  useAuthStore.getState().setHasValidSession(true);
   return responseData;
 };
 

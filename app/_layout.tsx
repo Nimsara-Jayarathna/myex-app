@@ -19,20 +19,12 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
-  useEffect(() => {
-    // Load stored cookies FIRST, before hiding splash
-    import('@/context/auth-store').then(async ({ useAuthStore }) => {
-      await useAuthStore.getState().loadCookies();
-      // Only hide splash after cookies are loaded
-      SplashScreen.hideAsync();
-    });
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <OfflineProvider>
           <AppThemeProvider>
+            <AppBootstrap />
             <OfflineLifecycle />
             <OfflinePromptHost />
             <SyncOverlay />
@@ -43,6 +35,28 @@ export default function RootLayout() {
       </AuthProvider>
     </QueryClientProvider>
   );
+}
+
+function AppBootstrap() {
+  const { isThemeReady } = useAppTheme();
+  const [cookiesReady, setCookiesReady] = React.useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void import('@/context/auth-store').then(async ({ useAuthStore }) => {
+      await useAuthStore.getState().loadCookies();
+      if (active) setCookiesReady(true);
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (isThemeReady && cookiesReady) {
+      void SplashScreen.hideAsync();
+    }
+  }, [isThemeReady, cookiesReady]);
+
+  return null;
 }
 
 function OfflineLifecycle() {

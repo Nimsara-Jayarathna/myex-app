@@ -10,7 +10,9 @@ import {
 } from '@/components/home/layout/spacing';
 import { SummaryCard } from '@/components/home/today/SummaryCard';
 import { ThemedText } from '@/components/themed-text';
+import { useAuthStore } from '@/context/auth-store';
 import { useAppTheme } from '@/context/ThemeContext';
+import { formatMoney } from '@/utils/money';
 import type { AllFilters, Grouping } from '@/hooks/home/useTransactionLogic';
 
 type BaseProps = {
@@ -38,9 +40,9 @@ export type HomeStickyHeaderProps = TodayVariant | AllVariant;
 
 export function HomeStickyHeader(props: HomeStickyHeaderProps) {
   const { colors, resolvedTheme } = useAppTheme();
+  const { user } = useAuthStore();
+  const currencySymbol = user?.currency?.symbol ?? '$';
   const expenseColor = resolvedTheme === 'dark' ? '#ef4444' : '#dc2626';
-  const formatMoney = (val: number) =>
-    `$${(Number.isFinite(val) ? Math.abs(val) : 0).toFixed(2)}`;
 
   return (
     <StickyHeaderShell
@@ -73,7 +75,7 @@ export function HomeStickyHeader(props: HomeStickyHeaderProps) {
             <View style={[styles.collapsedCard, { backgroundColor: colors.surfaceGlassThick, borderColor: colors.borderGlass }]}>
               <ThemedText style={[styles.collapsedLabel, { color: colors.textSubtle }]}>Today&apos;s Balance</ThemedText>
               <ThemedText style={[styles.collapsedValue, { color: props.balance >= 0 ? colors.primaryAccent : expenseColor }]}>
-                {props.balance < 0 ? '-' : ''}{formatMoney(props.balance)}
+                {props.balance < 0 ? '-' : ''}{formatMoney(props.balance, currencySymbol)}
               </ThemedText>
             </View>
           );

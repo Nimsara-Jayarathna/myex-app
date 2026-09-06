@@ -17,11 +17,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { registerComplete, registerInit, registerVerify } from '@/api/auth';
+import { OtpInput } from '@/components/auth/OtpInput';
 import { HomeBackground } from '@/components/home/HomeBackground';
 import { ThemedText } from '@/components/themed-text';
 import { BlockingModal, BlockingState } from '@/components/ui/BlockingModal';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
+import { IOS_PASSWORD_RULES, isStrongPassword, PASSWORD_MIN_LENGTH, PASSWORD_REQUIREMENTS_LABEL } from '@/utils/password-policy';
 
 // Enable animations for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -42,7 +44,7 @@ export default function RegisterScreen() {
 
   // Form Data
   const [email, setEmail] = useState('');
-  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+  const [otp, setOtp] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
@@ -57,8 +59,6 @@ export default function RegisterScreen() {
   const [emailTouched, setEmailTouched] = useState(false);
   const [showEmailValidation, setShowEmailValidation] = useState(false);
 
-  // OTP Input Refs
-  const otpRefs = useRef<(TextInput | null)[]>([]);
   const lastSubmittedOtpRef = useRef<string>('');
 
   // Resend Timer
@@ -67,7 +67,7 @@ export default function RegisterScreen() {
 
   // Timer effect
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (resendTimer > 0) {
       interval = setInterval(() => {
         setResendTimer((prev) => {
@@ -82,15 +82,11 @@ export default function RegisterScreen() {
     return () => clearInterval(interval);
   }, [resendTimer]);
 
-  // Start timer when entering OTP step
+  // Start timer when entering OTP step. The single semantic OTP input handles focus.
   useEffect(() => {
     if (step === 'otp') {
       setResendTimer(60);
       setCanResend(false);
-      // Auto-focus first OTP input
-      setTimeout(() => {
-        otpRefs.current[0]?.focus();
-      }, 300);
     }
   }, [step]);
 
@@ -121,7 +117,7 @@ export default function RegisterScreen() {
   const isDetailsStepValid =
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
-    password.trim().length >= 6;
+    isStrongPassword(password);
 
   // Mutations
   const initMutation = useMutation({
@@ -175,15 +171,11 @@ export default function RegisterScreen() {
         || 'Invalid verification code.';
       setBlockingMessage(msg);
 
-      // Clear OTP inputs on error for easy re-entry
+      // Clear the semantic OTP input on error for easy re-entry.
       setTimeout(() => {
-        setOtpDigits(['', '', '', '', '', '']);
+        setOtp('');
         setBlockingState('idle');
         setBlockingMessage(undefined);
-        // Refocus first input after state updates
-        setTimeout(() => {
-          otpRefs.current[0]?.focus();
-        }, 100);
       }, 2000);
     },
   });
@@ -223,21 +215,18 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (otpDigits.some(digit => digit === '')) {
+    if (otp.length < 6) {
       lastSubmittedOtpRef.current = '';
     }
-  }, [otpDigits, step]);
+  }, [otp, step]);
 
-  // Auto-verify when all 6 digits are entered
+  // Auto-verify when all 6 digits are entered.
   useEffect(() => {
-    if (step === 'otp' && otpDigits.every(digit => digit !== '')) {
-      const otp = otpDigits.join('');
-      if (otp.length === 6 && !isVerifyPending && otp !== lastSubmittedOtpRef.current) {
-        lastSubmittedOtpRef.current = otp;
-        verifyOtp({ email: email.trim(), otp });
-      }
+    if (step === 'otp' && otp.length === 6 && !isVerifyPending && otp !== lastSubmittedOtpRef.current) {
+      lastSubmittedOtpRef.current = otp;
+      verifyOtp({ email: email.trim(), otp });
     }
-  }, [otpDigits, step, email, isVerifyPending, verifyOtp]);
+  }, [otp, step, email, isVerifyPending, verifyOtp]);
 
   // Handlers
   const handleEmailSubmit = () => {
@@ -250,60 +239,10 @@ export default function RegisterScreen() {
     initMutation.mutate({ email: trimmedEmail });
   };
 
-  const handleOtpChange = (value: string, index: number) => {
-    // Only allow numbers
-    const numericValue = value.replace(/[^0-9]/g, '');
-
-    if (numericValue.length === 0) {
-      // Clear current box
-      const newOtpDigits = [...otpDigits];
-      newOtpDigits[index] = '';
-      setOtpDigits(newOtpDigits);
-      return;
-    }
-
-    if (numericValue.length > 1) {
-      // Handle paste or multiple characters
-      const digits = numericValue.slice(0, 6).split('');
-      const newOtpDigits = [...otpDigits];
-
-      // Fill from current index
-      digits.forEach((digit, i) => {
-        if (index + i < 6) {
-          newOtpDigits[index + i] = digit;
-        }
-      });
-      setOtpDigits(newOtpDigits);
-
-      // Focus last filled box or last box
-      const nextIndex = Math.min(index + digits.length - 1, 5);
-      otpRefs.current[nextIndex]?.focus();
-    } else {
-      // Single digit input
-      const newOtpDigits = [...otpDigits];
-      newOtpDigits[index] = numericValue;
-      setOtpDigits(newOtpDigits);
-
-      // Auto-advance to next box
-      if (index < 5) {
-        otpRefs.current[index + 1]?.focus();
-      }
-    }
-  };
-
-  const handleOtpKeyPress = (e: any, index: number) => {
-    if (e.nativeEvent.key === 'Backspace' && !otpDigits[index] && index > 0) {
-      // Move to previous box on backspace if current is empty
-      otpRefs.current[index - 1]?.focus();
-    }
-  };
-
-
-
   const handleResendOtp = () => {
     if (!canResend) return;
 
-    setOtpDigits(['', '', '', '', '', '']);
+    setOtp('');
     setErrorMessage(null);
     lastSubmittedOtpRef.current = '';
     initMutation.mutate({ email: email.trim() });
@@ -311,7 +250,7 @@ export default function RegisterScreen() {
 
   const handleChangeEmail = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setOtpDigits(['', '', '', '', '', '']);
+    setOtp('');
     setErrorMessage(null);
     lastSubmittedOtpRef.current = '';
     setStep('email');
@@ -321,11 +260,11 @@ export default function RegisterScreen() {
     const trimmed = {
       fname: firstName.trim(),
       lname: lastName.trim(),
-      password: password.trim(),
+      password,
     };
 
-    if (!trimmed.fname || !trimmed.lname || !trimmed.password) {
-      setErrorMessage('Please fill in all details.');
+    if (!trimmed.fname || !trimmed.lname || !isStrongPassword(password)) {
+      setErrorMessage(PASSWORD_REQUIREMENTS_LABEL + '.');
       return;
     }
     setErrorMessage(null);
@@ -411,6 +350,10 @@ export default function RegisterScreen() {
                       placeholderTextColor={colors.textMuted}
                       keyboardType="email-address"
                       autoCapitalize="none"
+                      autoCorrect={false}
+                      textContentType={Platform.OS === 'ios' ? 'username' : undefined}
+                      autoComplete={Platform.OS === 'android' ? 'email' : undefined}
+                      importantForAutofill="yes"
                       style={[styles.input, { color: colors.textMain }]}
                     />
                   </View>
@@ -436,32 +379,13 @@ export default function RegisterScreen() {
                       Enter 6-Digit Code
                     </ThemedText>
 
-                    {/* OTP Input Boxes */}
-                    <View style={styles.otpContainer}>
-                      {otpDigits.map((digit, index) => (
-                        <View
-                          key={index}
-                          style={[
-                            styles.otpBox,
-                            {
-                              backgroundColor: colors.inputBg,
-                              borderColor: digit ? accentColor : colors.inputBorder,
-                              borderWidth: digit ? 2 : 1,
-                            },
-                          ]}
-                        >
-                          <TextInput
-                            ref={(ref) => { otpRefs.current[index] = ref; }}
-                            value={digit}
-                            onChangeText={(value) => handleOtpChange(value, index)}
-                            onKeyPress={(e) => handleOtpKeyPress(e, index)}
-                            keyboardType="number-pad"
-                            selectTextOnFocus
-                            style={[styles.otpInput, { color: colors.textMain }]}
-                          />
-                        </View>
-                      ))}
-                    </View>
+                    <OtpInput
+                      value={otp}
+                      onChangeText={setOtp}
+                      autoFocus
+                      disabled={isVerifyPending}
+                      accessibilityLabel="Registration verification code"
+                    />
                   </View>
 
                   {/* Resend Link */}
@@ -501,6 +425,7 @@ export default function RegisterScreen() {
                           onChangeText={setFirstName}
                           placeholder="Alex"
                           placeholderTextColor={colors.textMuted}
+                          textContentType={Platform.OS === 'ios' ? 'givenName' : undefined}
                           style={[styles.input, { color: colors.textMain }]}
                         />
                       </View>
@@ -513,6 +438,7 @@ export default function RegisterScreen() {
                           onChangeText={setLastName}
                           placeholder="Doe"
                           placeholderTextColor={colors.textMuted}
+                          textContentType={Platform.OS === 'ios' ? 'familyName' : undefined}
                           style={[styles.input, { color: colors.textMain }]}
                         />
                       </View>
@@ -525,10 +451,10 @@ export default function RegisterScreen() {
                       <ThemedText
                         style={[
                           styles.charCounter,
-                          { color: password.length >= 6 ? '#27ae60' : colors.textMuted }
+                          { color: isStrongPassword(password) ? '#27ae60' : colors.textMuted }
                         ]}
                       >
-                        {password.length}/6 characters
+                        {password.length}/{PASSWORD_MIN_LENGTH}+ characters
                       </ThemedText>
                     </View>
                     <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
@@ -536,9 +462,15 @@ export default function RegisterScreen() {
                       <TextInput
                         value={password}
                         onChangeText={setPassword}
-                        placeholder="Min. 6 characters"
+                        placeholder={PASSWORD_REQUIREMENTS_LABEL}
                         placeholderTextColor={colors.textMuted}
                         secureTextEntry
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        textContentType={Platform.OS === 'ios' ? 'newPassword' : undefined}
+                        autoComplete={Platform.OS === 'android' ? 'new-password' : undefined}
+                        passwordRules={Platform.OS === 'ios' ? IOS_PASSWORD_RULES : undefined}
+                        importantForAutofill="yes"
                         style={[styles.input, { color: colors.textMain }]}
                       />
                     </View>

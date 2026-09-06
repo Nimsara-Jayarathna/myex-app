@@ -1,5 +1,4 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -18,8 +17,6 @@ export type Capabilities = {
   canAccessMainSections: boolean;
   canAccessProfileSettings: boolean;
 };
-
-const SESSION_CACHE_KEY = 'has_valid_session';
 
 type OfflineContextValue = {
   offlineMode: boolean;
@@ -49,7 +46,7 @@ type OfflineContextValue = {
 const OfflineContext = createContext<OfflineContextValue | null>(null);
 
 export const OfflineProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
-  const { setAuth } = useAuth();
+  const { setAuth, hasValidSession } = useAuth();
   const queryClient = useQueryClient();
   // Offline state combines manual override + device connectivity.
   const [networkConnected, setNetworkConnected] = useState(true);
@@ -248,26 +245,21 @@ export const OfflineProvider: React.FC<React.PropsWithChildren> = ({ children })
       if (Date.now() < suppressPromptUntilRef.current) {
         return;
       }
-      const checkAndPrompt = async () => {
-        const cached = await AsyncStorage.getItem(SESSION_CACHE_KEY);
-        const hasValidSession = cached === 'true';
-        const reason = hasValidSession
-          ? 'Connection lost.'
-          : 'You need to be online to sign in.';
-        openPrompt(
-          reason,
-          async () => {
-            await apiClient.get('/health', { timeout: 5000 });
-          },
-          hasValidSession,
-          'Retry',
-          undefined,
-          false
-        );
-      };
-      void checkAndPrompt();
+      const reason = hasValidSession
+        ? 'Connection lost.'
+        : 'You need to be online to sign in.';
+      openPrompt(
+        reason,
+        async () => {
+          await apiClient.get('/health', { timeout: 5000 });
+        },
+        hasValidSession,
+        'Retry',
+        undefined,
+        false
+      );
     }
-  }, [networkConnected, manualOffline, openPrompt]);
+  }, [networkConnected, manualOffline, openPrompt, hasValidSession]);
 
   const capabilities = useMemo<Capabilities>(() => {
     if (offlineMode) {
